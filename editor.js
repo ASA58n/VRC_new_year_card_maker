@@ -1,47 +1,76 @@
-// TextElement コンポーネント - ドラッグ可能なテキスト要素
+// TextElement コンポーネント
 const TextElement = ({ text, style, position, isSelected, onSelect, onDragStart, onDrag, onDragEnd }) => {
     const elementRef = React.useRef(null);
     const [isDragging, setIsDragging] = React.useState(false);
     const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
+    const [currentPosition, setCurrentPosition] = React.useState(position);
 
+    // ドラッグ開始時の処理
     const handleMouseDown = (e) => {
-        setIsDragging(true);
+        e.preventDefault();
         const rect = elementRef.current.getBoundingClientRect();
+        const parentRect = elementRef.current.parentElement.getBoundingClientRect();
+        
         setDragOffset({
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            x: e.clientX - (rect.left - parentRect.left),
+            y: e.clientY - (rect.top - parentRect.top)
         });
+        
+        setIsDragging(true);
         onDragStart();
         onSelect();
     };
 
-    const handleMouseMove = (e) => {
+    // ドラッグ中の処理
+    const handleMouseMove = React.useCallback((e) => {
         if (!isDragging) return;
-        
+
+        e.preventDefault();
         const parentRect = elementRef.current.parentElement.getBoundingClientRect();
         const x = e.clientX - parentRect.left - dragOffset.x;
         const y = e.clientY - parentRect.top - dragOffset.y;
-        
-        onDrag({ x, y });
-    };
 
-    const handleMouseUp = () => {
+        // 位置の制約（エディタ領域内に収める）
+        const newX = Math.max(0, Math.min(x, parentRect.width - elementRef.current.offsetWidth));
+        const newY = Math.max(0, Math.min(y, parentRect.height - elementRef.current.offsetHeight));
+
+        setCurrentPosition({ x: newX, y: newY });
+        onDrag({ x: newX, y: newY });
+    }, [isDragging, dragOffset, onDrag]);
+
+    // ドラッグ終了時の処理
+    const handleMouseUp = React.useCallback(() => {
         if (isDragging) {
             setIsDragging(false);
             onDragEnd();
         }
-    };
+    }, [isDragging, onDragEnd]);
 
+    // イベントリスナーの設定
     React.useEffect(() => {
         if (isDragging) {
             window.addEventListener('mousemove', handleMouseMove);
             window.addEventListener('mouseup', handleMouseUp);
+            
+            // カーソルスタイルを設定
+            document.body.style.cursor = 'grabbing';
+            document.body.style.userSelect = 'none';
         }
+
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
+            
+            // カーソルスタイルを元に戻す
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
         };
-    }, [isDragging]);
+    }, [isDragging, handleMouseMove, handleMouseUp]);
+
+    // 位置の更新を反映
+    React.useEffect(() => {
+        setCurrentPosition(position);
+    }, [position]);
 
     return (
         <div
@@ -49,11 +78,23 @@ const TextElement = ({ text, style, position, isSelected, onSelect, onDragStart,
             className={`text-element ${isSelected ? 'selected' : ''}`}
             style={{
                 ...style,
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-                cursor: isDragging ? 'grabbing' : 'grab'
+                left: `${currentPosition.x}px`,
+                top: `${currentPosition.y}px`,
+                cursor: isDragging ? 'grabbing' : 'grab',
+                position: 'absolute',
+                transition: isDragging ? 'none' : 'all 0.05s ease',
+                touchAction: 'none'
             }}
             onMouseDown={handleMouseDown}
+            onTouchStart={(e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                handleMouseDown({
+                    preventDefault: () => {},
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+            }}
         >
             {text}
         </div>
