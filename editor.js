@@ -125,7 +125,7 @@ const fonts = [
 ];
 
 // FontSelector コンポーネント
-const FontSelector = React.memo(() => {
+const FontSelector = React.memo(({ selectedFont, onFontSelect }) => {
     const [isExpanded, setIsExpanded] = React.useState(false);
     
     const categories = [
@@ -148,17 +148,10 @@ const FontSelector = React.memo(() => {
     ];
 
     // 現在選択されているフォントの情報を取得
-    const selectedFont = fonts.find(f => f.value === currentFont);
-
-    // フォント選択ハンドラー
-    const handleFontSelect = React.useCallback((fontValue) => {
-        setCurrentFont(fontValue);
-        setIsExpanded(false);
-    }, []);
+    const selectedFontInfo = fonts.find(f => f.value === selectedFont);
 
     return (
         <div className="font-selector">
-            {/* 現在選択中のフォントプレビュー */}
             <div className="font-preview">
                 <label>フォント</label>
                 <div 
@@ -167,12 +160,12 @@ const FontSelector = React.memo(() => {
                 >
                     <span 
                         className="sample-text"
-                        style={{ fontFamily: selectedFont.value }}
+                        style={{ fontFamily: selectedFontInfo.value }}
                     >
-                        {selectedFont.sample}
+                        {selectedFontInfo.sample}
                     </span>
                     <div className="preview-footer">
-                        <span className="font-name">{selectedFont.name}</span>
+                        <span className="font-name">{selectedFontInfo.name}</span>
                         <span className="expand-icon">
                             {isExpanded ? '▼' : '▶'}
                         </span>
@@ -180,7 +173,6 @@ const FontSelector = React.memo(() => {
                 </div>
             </div>
 
-            {/* フォント選択パネル */}
             {isExpanded && (
                 <div className="font-selection-panel">
                     {categories.map(category => (
@@ -190,8 +182,11 @@ const FontSelector = React.memo(() => {
                                 {category.fonts.map(font => (
                                     <div 
                                         key={font.value}
-                                        className={`font-sample ${currentFont === font.value ? 'selected' : ''}`}
-                                        onClick={() => handleFontSelect(font.value)}
+                                        className={`font-sample ${selectedFont === font.value ? 'selected' : ''}`}
+                                        onClick={() => {
+                                            onFontSelect(font.value);
+                                            setIsExpanded(false);
+                                        }}
                                     >
                                         <span 
                                             className="sample-text"
@@ -758,9 +753,12 @@ const NewYearCardEditor = () => {
                             縦書き
                         </button>
                     </div>
-
-                    <FontSelector />
-
+            
+                    <FontSelector 
+                        selectedFont={currentFont}
+                        onFontSelect={setCurrentFont}
+                    />
+            
                     <input
                         type="text"
                         className="text-input"
@@ -768,7 +766,6 @@ const NewYearCardEditor = () => {
                         onChange={(e) => setCurrentText(e.target.value)}
                         placeholder={`テキスト ${selectedTextIndex + 1}`}
                     />
-
                     <div className="text-controls">
                         <div>
                             <label>文字サイズ</label>
