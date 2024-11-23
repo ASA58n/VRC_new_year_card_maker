@@ -833,40 +833,18 @@ const NewYearCardEditor = () => {
         if (!editorElement) return;
 
         try {
-            // 現在のスタイルを保存
-            const originalStyle = {
-                width: editorElement.style.width,
-                height: editorElement.style.height,
-                transform: editorElement.style.transform
-            };
-
-            // エディタのサイズを実際の出力サイズに設定
+            // エディタのサイズを実際の出力サイズに設定 (変更点1: 直接スタイルを変更)
             editorElement.style.width = `${selectedLayout.width}px`;
             editorElement.style.height = `${selectedLayout.height}px`;
-            editorElement.style.transform = 'none';
+            editorElement.style.transform = 'none'; // 既存のtransformを削除
 
-            // スケール調整用の一時的なスタイルを適用
-            const elements = editorElement.getElementsByClassName('text-element');
-            const stamps = editorElement.getElementsByClassName('stamp-element');
-            
-            // テキスト要素のスケール調整
-            Array.from(elements).forEach(element => {
-                const originalTransform = element.style.transform;
-                const originalScale = 1 / editorScale;
-                element.style.transform = `scale(${originalScale})`;
-            });
+            // テキスト要素とスタンプ要素のスケーリングを削除 (変更点2: これらの要素のスタイル変更を削除)
+            // これらの要素は、エディタのサイズ変更に応じて既に適切にレンダリングされていると仮定します。
 
-            // スタンプ要素のスケール調整
-            Array.from(stamps).forEach(stamp => {
-                const originalTransform = stamp.style.transform;
-                const originalScale = 1 / editorScale;
-                stamp.style.transform = `scale(${originalScale})`;
-            });
-
-            // html2canvasの設定
+            // html2canvasの設定 (変更点3: scale を 1 に変更)
             const options = {
                 backgroundColor: null,
-                scale: 2, // 高解像度化のため2倍のスケールで出力
+                scale: 1, // 高解像度化は不要になりました。
                 useCORS: true,
                 allowTaint: true,
                 logging: false
@@ -881,24 +859,16 @@ const NewYearCardEditor = () => {
             link.href = canvas.toDataURL('image/png');
             link.click();
 
-            // スタイルを元に戻す
-            editorElement.style.width = originalStyle.width;
-            editorElement.style.height = originalStyle.height;
-            editorElement.style.transform = originalStyle.transform;
-
-            // 要素のスタイルを元に戻す
-            Array.from(elements).forEach(element => {
-                element.style.transform = '';
-            });
-            Array.from(stamps).forEach(stamp => {
-                stamp.style.transform = '';
-            });
+            // 元のスタイルを復元
+            editorElement.style.width = ''; // デフォルトの幅にリセット
+            editorElement.style.height = ''; // デフォルトの高さをリセット
+            editorElement.style.transform = ''; // デフォルトのtransformにリセット
 
         } catch (error) {
             console.error('Download failed:', error);
             alert('ダウンロードに失敗しました。\n画像の生成中にエラーが発生しました。');
         }
-    }, [selectedLayout, editorScale]);
+    }, [selectedLayout]);
 
     // エラー処理用の関数
     const handleError = (error, message) => {
