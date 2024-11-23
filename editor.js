@@ -211,7 +211,7 @@ const FontSelector = React.memo(() => {
     );
 });
 
-// StampElement コンポーネント
+// Element コンポーネント
 const StampElement = ({ src, style, position, size, isSelected, onSelect, onDragStart, onDrag, onDragEnd, onResize }) => {
     const elementRef = React.useRef(null);
     const [isDragging, setIsDragging] = React.useState(false);
@@ -524,16 +524,32 @@ const NewYearCardEditor = () => {
     // スタンプの確定処理
     const handleConfirmStamp = () => {
         if (previewStamp) {
+            // 新規スタンプの確定
             setStampElements(prev => [...prev, previewStamp]);
             setPreviewStamp(null);
+        } else if (selectedStampIndex !== null) {
+            // 既存スタンプの編集を確定（選択解除）
+            setSelectedStampIndex(null);
         }
     };
 
     // スタンプのキャンセル処理
     const handleCancelStamp = () => {
-        setPreviewStamp(null);
+        if (previewStamp) {
+            setPreviewStamp(null);
+        } else if (selectedStampIndex !== null) {
+            setSelectedStampIndex(null);
+        }
     };
-    
+
+    // スタンプの削除処理
+    const handleDeleteStamp = () => {
+        if (selectedStampIndex !== null) {
+            setStampElements(prev => prev.filter((_, i) => i !== selectedStampIndex));
+            setSelectedStampIndex(null);
+        }
+    };
+
     // スタンプのドラッグ処理
     const handleStampDrag = (index, position) => {
         if (previewStamp) {
@@ -541,10 +557,10 @@ const NewYearCardEditor = () => {
                 ...prev,
                 position
             }));
-        } else {
+        } else if (selectedStampIndex !== null) {
             const updatedElements = [...stampElements];
-            updatedElements[index] = {
-                ...updatedElements[index],
+            updatedElements[selectedStampIndex] = {
+                ...updatedElements[selectedStampIndex],
                 position
             };
             setStampElements(updatedElements);
@@ -558,22 +574,16 @@ const NewYearCardEditor = () => {
                 ...prev,
                 size
             }));
-        } else {
+        } else if (selectedStampIndex !== null) {
             const updatedElements = [...stampElements];
-            updatedElements[index] = {
-                ...updatedElements[index],
+            updatedElements[selectedStampIndex] = {
+                ...updatedElements[selectedStampIndex],
                 size
             };
             setStampElements(updatedElements);
         }
     };
-
-    // スタンプの削除処理
-    const handleDeleteStamp = (index) => {
-        setStampElements(prev => prev.filter((_, i) => i !== index));
-        setSelectedStampIndex(null);
-    };
-
+    
     // テキスト関連の処理
     const handleTextDrag = (index, position) => {
         const updatedElements = [...textElements];
@@ -630,7 +640,7 @@ const NewYearCardEditor = () => {
         updateSelectedText();
     }, [currentText, currentFont, currentSize, currentColor, isVertical]);
     
-    // UI レンダリング
+    // レンダリング部分
     return (
         <div className="editor-container">
             {/* メインエディター領域 */}
@@ -644,22 +654,6 @@ const NewYearCardEditor = () => {
                             style={getImageStyle()}
                         />
                         <div className="text-layer">
-                            {textElements.map((element, index) => (
-                                <TextElement
-                                    key={element.id}
-                                    text={element.text}
-                                    style={element.style}
-                                    position={element.position}
-                                    isSelected={index === selectedTextIndex}
-                                    onSelect={() => {
-                                        handleTextSelect(index);
-                                        setSelectedStampIndex(null);
-                                    }}
-                                    onDragStart={() => {}}
-                                    onDrag={(pos) => handleTextDrag(index, pos)}
-                                    onDragEnd={() => {}}
-                                />
-                            ))}
                             {/* 配置済みスタンプ */}
                             {stampElements.map((element, index) => (
                                 <StampElement
@@ -671,6 +665,7 @@ const NewYearCardEditor = () => {
                                     onSelect={() => {
                                         setSelectedStampIndex(index);
                                         setSelectedTextIndex(null);
+                                        setPreviewStamp(null);
                                     }}
                                     onDragStart={() => {}}
                                     onDrag={(pos) => handleStampDrag(index, pos)}
@@ -678,8 +673,7 @@ const NewYearCardEditor = () => {
                                     onResize={(size) => handleStampResize(index, size)}
                                 />
                             ))}
-
-                            {/* プレビュー中のスタンプ */}
+                            {/* プレビュースタンプ */}
                             {previewStamp && (
                                 <StampElement
                                     key="preview"
@@ -814,17 +808,10 @@ const NewYearCardEditor = () => {
                         onPreviewStamp={handlePreviewStamp}
                         onConfirmStamp={handleConfirmStamp}
                         onCancelStamp={handleCancelStamp}
+                        onDeleteStamp={handleDeleteStamp}
                         isPreviewMode={!!previewStamp}
+                        isEditing={selectedStampIndex !== null}
                     />
-                    {selectedStampIndex !== null && !previewStamp && (
-                        <button 
-                            className="btn btn-danger"
-                            onClick={() => handleDeleteStamp(selectedStampIndex)}
-                            style={{width: '100%', marginTop: '10px'}}
-                        >
-                            選択中のスタンプを削除
-                        </button>
-                    )}
                 </div>
             )}
 
