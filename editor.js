@@ -180,10 +180,10 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
             return;
         }
         setIsDragging(true);
-        const rect = elementRef.current.getBoundingClientRect();
+        // 修正点1: 親要素に対する相対位置を取得
         setDragOffset({
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
+            x: e.clientX - elementRef.current.offsetLeft,
+            y: e.clientY - elementRef.current.offsetTop
         });
         onDragStart();
         onSelect();
@@ -191,11 +191,12 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
 
     const handleMouseMove = (e) => {
         if (!isDragging) return;
-        
+
+        // 修正点2: 親要素に対する相対座標を計算
         const parentRect = elementRef.current.parentElement.getBoundingClientRect();
-        const x = e.clientX - parentRect.left - dragOffset.x;
-        const y = e.clientY - parentRect.top - dragOffset.y;
-        
+        const x = e.clientX - parentRect.left - (elementRef.current.offsetLeft);
+        const y = e.clientY - parentRect.top - (elementRef.current.offsetTop);
+
         onDrag({ x, y });
     };
 
