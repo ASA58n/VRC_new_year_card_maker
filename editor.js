@@ -1,3 +1,269 @@
+// StampElement コンポーネント - ドラッグ＆リサイズ可能なスタンプ要素
+const StampElement = ({ src, style, position, size, isSelected, onSelect, onDragStart, onDrag, onDragEnd, onResize }) => {
+    const elementRef = React.useRef(null);
+    const [isDragging, setIsDragging] = React.useState(false);
+    const [isResizing, setIsResizing] = React.useState(false);
+    const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
+    const [startSize, setStartSize] = React.useState({ width: 0, height: 0 });
+    const [startPos, setStartPos] = React.useState({ x: 0, y: 0 });
+
+    // ドラッグ処理
+    const handleMouseDown = (e) => {
+        if (e.target.classList.contains('resize-handle')) {
+            return;
+        }
+        setIsDragging(true);
+        const rect = elementRef.current.getBoundingClientRect();
+        setDragOffset({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        });
+        onDragStart();
+        onSelect();
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging) return;
+        
+        const parentRect = elementRef.current.parentElement.getBoundingClientRect();
+        const x = e.clientX - parentRect.left - dragOffset.x;
+        const y = e.clientY - parentRect.top - dragOffset.y;
+        
+        onDrag({ x, y });
+    };
+
+    const handleMouseUp = () => {
+        if (isDragging) {
+            setIsDragging(false);
+            onDragEnd();
+        }
+    };
+
+    // リサイズ処理
+    const handleResizeStart = (e) => {
+        e.stopPropagation();
+        setIsResizing(true);
+        setStartSize({ width: size.width, height: size.height });
+        setStartPos({ x: e.clientX, y: e.clientY });
+    };
+
+    const handleResizeMove = (e) => {
+        if (!isResizing) return;
+
+        const dx = e.clientX - startPos.x;
+        const dy = e.clientY - startPos.y;
+        const aspect = startSize.width / startSize.height;
+        
+        const newWidth = Math.max(30, startSize.width + dx);
+        const newHeight = newWidth / aspect;
+
+        onResize({ width: newWidth, height: newHeight });
+    };
+
+    const handleResizeEnd = () => {
+        setIsResizing(false);
+    };
+
+    React.useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        if (isResizing) {
+            window.addEventListener('mousemove', handleResizeMove);
+            window.addEventListener('mouseup', handleResizeEnd);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener('mousemove', handleResizeMove);
+            window.removeEventListener('mouseup', handleResizeEnd);
+        };
+    }, [isDragging, isResizing]);
+
+    return (
+        <div
+            ref={elementRef}
+            className={`stamp-element ${isSelected ? 'selected' : ''}`}
+            style={{
+                ...style,
+                left: `${position.x}px`,
+                top: `${position.y}px`,
+                width: `${size.width}px`,
+                height: `${size.height}px`,
+                cursor: isDragging ? 'grabbing' : 'grab',
+                position: 'absolute'
+            }}
+            onMouseDown={handleMouseDown}
+        >
+            <img 
+                src={src} 
+                alt="スタンプ"
+                style={{ 
+                    width: '100%',
+                    height: '100%',
+                    pointerEvents: 'none',
+                    userSelect: 'none'
+                }}
+            />
+            {isSelected && (
+                <div 
+                    className="resize-handle"
+                    onMouseDown={handleResizeStart}
+                />
+            )}
+        </div>
+    );
+};
+
+// StampSelector コンポーネント - スタンプアップロード＆選択UI
+const StampSelector = React.memo(({ onAddStamp }) => {
+    const [uploadedStamps, setUploadedStamps] = React.useState([]);
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                // 画像の元のサイズを取得するため、一時的なimg要素を作成
+                const img = new Image();
+                img.onload = () => {
+                    const stamp = {
+                        id: Date.now(),
+                        src: event.target.result,
+                        originalSize: {
+                            width: img.width,
+                            height: img.height
+                        }
+                    };
+                    setUploadedStamps(prev => [...prev, stamp]);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleAddStamp = (stamp) => {
+        // 適切な初期サイズを計算（例：元のサイズの1/3）
+        const initialSize = {
+            width: stamp.originalSize.width / 3,
+            height: stamp.originalSize.height / 3
+        };
+        onAddStamp(stamp.src, initialSize);
+    };
+
+    return (
+        <div className="stamp-selector">
+            <div className="stamp-upload">
+                <label className="upload-button">
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        style={{ display: 'none' }}
+                    />
+                    画像をアップロード
+                </label>
+            </div>
+            {uploadedStamps.length > 0 && (
+                <div className="uploaded-stamps">
+                    <h4>アップロードした画像</h4>
+                    <div className="stamp-grid">
+                        {uploadedStamps.map(stamp => (
+                            <div 
+                                key={stamp.id}
+                                className="stamp-item"
+                                onClick={() => handleAddStamp(stamp)}
+                            >
+                                <img 
+                                    src={stamp.src} 
+                                    alt="アップロードした画像"
+                                    className="stamp-preview"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+});
+
+// スタイルの追加
+const styles = `
+.stamp-element {
+    position: absolute;
+    min-width: 30px;
+    min-height: 30px;
+}
+
+.stamp-element.selected {
+    outline: 2px solid #4a90e2;
+}
+
+.resize-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #4a90e2;
+    border: 1px solid white;
+    border-radius: 50%;
+    bottom: -5px;
+    right: -5px;
+    cursor: se-resize;
+}
+
+.stamp-selector {
+    margin-bottom: 15px;
+}
+
+.upload-button {
+    display: inline-block;
+    padding: 8px 16px;
+    background: #4a90e2;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.upload-button:hover {
+    background: #357abd;
+}
+
+.uploaded-stamps {
+    margin-top: 15px;
+}
+
+.stamp-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    padding: 10px 0;
+}
+
+.stamp-item {
+    aspect-ratio: 1;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.stamp-item:hover {
+    background: #f5f5f5;
+    transform: scale(1.05);
+}
+
+.stamp-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+`;
+
 // TextElement コンポーネント - ドラッグ可能なテキスト要素
 const TextElement = ({ text, style, position, isSelected, onSelect, onDragStart, onDrag, onDragEnd }) => {
     const elementRef = React.useRef(null);
@@ -92,6 +358,9 @@ const NewYearCardEditor = () => {
         contrast: 100,
         saturate: 100
     });
+    const [stampElements, setStampElements] = React.useState([]);
+    const [selectedStampIndex, setSelectedStampIndex] = React.useState(null);
+    const [showStampControls, setShowStampControls] = React.useState(false);
 
     // フォントオプション
     const fonts = [
@@ -325,6 +594,45 @@ const NewYearCardEditor = () => {
         updateSelectedText();
     }, [currentText, currentFont, currentSize, currentColor, isVertical]);
 
+    // スタンプ追加処理
+    const handleAddStamp = (src, initialSize) => {
+        const newStamp = {
+            id: Date.now(),
+            src,
+            position: { x: 50, y: 50 },
+            size: initialSize
+        };
+        setStampElements(prev => [...prev, newStamp]);
+        setSelectedStampIndex(stampElements.length);
+    };
+
+    // スタンプドラッグ処理
+    const handleStampDrag = (index, position) => {
+        const updatedElements = [...stampElements];
+        updatedElements[index] = {
+            ...updatedElements[index],
+            position
+        };
+        setStampElements(updatedElements);
+    };
+
+    // スタンプリサイズ処理
+    const handleStampResize = (index, size) => {
+        const updatedElements = [...stampElements];
+        updatedElements[index] = {
+            ...updatedElements[index],
+            size
+        };
+        setStampElements(updatedElements);
+    };
+
+    // ツールバーのトグル処理を修正
+    const handleToolbarClick = (tool) => {
+        setShowAdjustments(tool === 'adjust');
+        setShowTextControls(tool === 'text');
+        setShowStampControls(tool === 'stamp');
+    };
+
 // UI レンダリング
     return (
         <div className="editor-container">
@@ -339,6 +647,7 @@ const NewYearCardEditor = () => {
                             style={getImageStyle()}
                         />
                         <div className="text-layer">
+                            {/* 既存のテキスト要素 */}
                             {textElements.map((element, index) => (
                                 <TextElement
                                     key={element.id}
@@ -347,9 +656,27 @@ const NewYearCardEditor = () => {
                                     position={element.position}
                                     isSelected={index === selectedTextIndex}
                                     onSelect={() => handleTextSelect(index)}
-                                    onDragStart={() => {}}
+                                    onDragStart={() => setSelectedStampIndex(null)}
                                     onDrag={(pos) => handleTextDrag(index, pos)}
                                     onDragEnd={() => {}}
+                                />
+                            ))}
+                            {/* スタンプ要素 */}
+                            {stampElements.map((element, index) => (
+                                <StampElement
+                                    key={element.id}
+                                    src={element.src}
+                                    position={element.position}
+                                    size={element.size}
+                                    isSelected={index === selectedStampIndex}
+                                    onSelect={() => {
+                                        setSelectedStampIndex(index);
+                                        setSelectedTextIndex(null);
+                                    }}
+                                    onDragStart={() => setSelectedTextIndex(null)}
+                                    onDrag={(pos) => handleStampDrag(index, pos)}
+                                    onDragEnd={() => {}}
+                                    onResize={(size) => handleStampResize(index, size)}
                                 />
                             ))}
                         </div>
@@ -371,25 +698,43 @@ const NewYearCardEditor = () => {
             <div className="toolbar">
                 <button 
                     className={`btn ${showAdjustments ? 'btn-primary' : ''}`}
-                    onClick={() => {
-                        setShowAdjustments(!showAdjustments);
-                        setShowTextControls(false);
-                    }}
+                    onClick={() => handleToolbarClick('adjust')}
                 >
                     画像調整
                 </button>
                 <button 
                     className={`btn ${showTextControls ? 'btn-primary' : ''}`}
-                    onClick={() => {
-                        setShowTextControls(!showTextControls);
-                        setShowAdjustments(false);
-                    }}
+                    onClick={() => handleToolbarClick('text')}
                 >
                     文字入力
                 </button>
-                <button className="btn">スタンプ</button>
+                <button 
+                    className={`btn ${showStampControls ? 'btn-primary' : ''}`}
+                    onClick={() => handleToolbarClick('stamp')}
+                >
+                    スタンプ
+                </button>
                 <button className="btn">レイアウト</button>
             </div>
+
+            {/* スタンプコントロールパネル */}
+            {showStampControls && selectedImage && (
+                <div className="control-panel">
+                    <StampSelector onAddStamp={handleAddStamp} />
+                    {selectedStampIndex !== null && (
+                        <button 
+                            className="btn btn-danger"
+                            onClick={() => {
+                                setStampElements(prev => prev.filter((_, i) => i !== selectedStampIndex));
+                                setSelectedStampIndex(null);
+                            }}
+                            style={{width: '100%', marginTop: '10px'}}
+                        >
+                            選択中のスタンプを削除
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* テキストコントロールパネル */}
             {showTextControls && selectedImage && (
