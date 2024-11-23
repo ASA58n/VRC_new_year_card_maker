@@ -811,15 +811,17 @@ const NewYearCardEditor = () => {
         alert(`エラーが発生しました。\n${message}`);
     };
 
-    // 画面サイズ変更時の処理
+    // 画面サイズ変更時の処理 
     React.useEffect(() => {
         const handleResize = () => {
-            calculateEditorSize();
+            // calculateEditorSize を削除
+            // 代わりに、editorStyle の再計算をトリガーする必要があるかもしれません。
+            // しかし、この段階ではcropRectの変化で十分なため、特に処理は不要です。
         };
 
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, [calculateEditorSize]);
+    }, []); // calculateEditorSize を依存配列から削除
 
     // レンダリング部分
     return (
