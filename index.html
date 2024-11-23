@@ -106,6 +106,7 @@
         /* フォントセレクター */
         .font-selector {
             margin-bottom: 15px;
+            position: relative;
         }
 
         .font-preview {
@@ -230,33 +231,6 @@
             object-fit: contain;
         }
 
-        .stamp-preview-container {
-            margin-top: 15px;
-            padding: 15px;
-            background: #f8f9fa;
-            border-radius: 4px;
-        }
-        
-        .stamp-preview-container h4 {
-            margin-top: 0;
-            margin-bottom: 10px;
-        }
-        
-        .stamp-preview-container p {
-            font-size: 0.9em;
-            color: #666;
-            margin-bottom: 15px;
-        }
-        
-        .preview-actions {
-            display: flex;
-            gap: 10px;
-        }
-        
-        .preview-actions .btn {
-            flex: 1;
-        }
-
         /* その他のスタイル */
         .category-title {
             font-size: 0.9em;
@@ -329,6 +303,67 @@
             border-radius: 3px;
             height: 6px;
             border: none;
+        }
+
+        /* フォントサンプル */
+        .font-sample {
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .font-sample:hover {
+            background-color: #f5f5f5;
+        }
+
+        .font-sample.selected {
+            border-color: #4a90e2;
+            background-color: #f0f7ff;
+        }
+
+        /* 縦書き/横書きトグル */
+        .writing-mode-toggle {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .writing-mode-toggle button {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .writing-mode-toggle button.active {
+            background: #4a90e2;
+            color: white;
+            border-color: #4a90e2;
+        }
+
+        /* テキスト入力 */
+        .text-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+
+        /* プレビューアクション */
+        .preview-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .preview-actions button {
+            flex: 1;
         }
     </style>
 </head>
