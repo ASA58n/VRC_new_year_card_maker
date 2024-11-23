@@ -331,13 +331,13 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
 // StampSelector コンポーネント
 const StampSelector = React.memo(({ onAddStamp }) => {
     const [uploadedStamps, setUploadedStamps] = React.useState([]);
+    const [previewStamp, setPreviewStamp] = React.useState(null);
 
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (file && file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload = (event) => {
-                // 画像の元のサイズを取得するため、一時的なimg要素を作成
                 const img = new Image();
                 img.onload = () => {
                     const stamp = {
@@ -356,9 +356,9 @@ const StampSelector = React.memo(({ onAddStamp }) => {
         }
     };
 
-    const handleAddStamp = (stamp) => {
+    const handlePreviewStamp = (stamp) => {
         // 適切な初期サイズを計算（元のサイズの1/3）
-        const maxSize = 200; // 最大サイズ
+        const maxSize = 200;
         let width = stamp.originalSize.width / 3;
         let height = stamp.originalSize.height / 3;
         
@@ -374,7 +374,21 @@ const StampSelector = React.memo(({ onAddStamp }) => {
             }
         }
 
-        onAddStamp(stamp.src, { width, height });
+        setPreviewStamp({
+            ...stamp,
+            size: { width, height }
+        });
+    };
+
+    const handleConfirm = () => {
+        if (previewStamp) {
+            onAddStamp(previewStamp.src, previewStamp.size);
+            setPreviewStamp(null);
+        }
+    };
+
+    const handleCancel = () => {
+        setPreviewStamp(null);
     };
 
     return (
@@ -390,7 +404,8 @@ const StampSelector = React.memo(({ onAddStamp }) => {
                     画像をアップロード
                 </label>
             </div>
-            {uploadedStamps.length > 0 && (
+            
+            {uploadedStamps.length > 0 && !previewStamp && (
                 <div className="uploaded-stamps">
                     <h4>アップロードした画像</h4>
                     <div className="stamp-grid">
@@ -398,7 +413,7 @@ const StampSelector = React.memo(({ onAddStamp }) => {
                             <div 
                                 key={stamp.id}
                                 className="stamp-item"
-                                onClick={() => handleAddStamp(stamp)}
+                                onClick={() => handlePreviewStamp(stamp)}
                             >
                                 <img 
                                     src={stamp.src} 
@@ -407,6 +422,27 @@ const StampSelector = React.memo(({ onAddStamp }) => {
                                 />
                             </div>
                         ))}
+                    </div>
+                </div>
+            )}
+
+            {previewStamp && (
+                <div className="stamp-preview-container">
+                    <h4>スタンプを配置</h4>
+                    <p>画像上の好きな位置にドラッグして配置し、サイズを調整してください</p>
+                    <div className="preview-actions">
+                        <button 
+                            className="btn btn-primary"
+                            onClick={handleConfirm}
+                        >
+                            確定
+                        </button>
+                        <button 
+                            className="btn"
+                            onClick={handleCancel}
+                        >
+                            キャンセル
+                        </button>
                     </div>
                 </div>
             )}
