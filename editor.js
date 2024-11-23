@@ -93,13 +93,57 @@ const NewYearCardEditor = () => {
         saturate: 100
     });
 
+    // フォントオプション
+    const fonts = [
+        { 
+            name: '明朝体',
+            value: "'Noto Serif JP', serif",
+            sample: 'あけましておめでとうございます'
+        },
+        { 
+            name: 'ゴシック体',
+            value: "'Noto Sans JP', sans-serif",
+            sample: 'あけましておめでとうございます'
+        },
+        { 
+            name: '毛筆体',
+            value: "'Yuji Syuku', serif",
+            sample: '謹賀新年'
+        },
+        { 
+            name: '春の海明朝',
+            value: "'Kaisei HarunoUmi', serif",
+            sample: '迎春'
+        },
+        { 
+            name: '丸ゴシック',
+            value: "'Zen Maru Gothic', sans-serif",
+            sample: 'あけましておめでとうございます'
+        },
+        { 
+            name: 'クレナイド',
+            value: "'Zen Kurenaido', sans-serif",
+            sample: 'Happy New Year'
+        },
+        { 
+            name: 'モノマニアック',
+            value: "'Monomaniac One', sans-serif",
+            sample: '2024'
+        },
+        { 
+            name: 'ガムジャ',
+            value: "'Gamja Flower', cursive",
+            sample: '새해 복 많이 받으세요'
+        }
+    ];
+
     // テキスト関連の状態
     const [textElements, setTextElements] = React.useState([{
         id: Date.now(),
         text: '',
         position: { x: 50, y: 50 },
         style: {
-            fontFamily: 'serif',
+            fontFamily: "'Noto Serif JP', serif",
             fontSize: '24px',
             color: '#000000',
             writingMode: 'horizontal-tb'
@@ -107,17 +151,58 @@ const NewYearCardEditor = () => {
     }]);
     const [selectedTextIndex, setSelectedTextIndex] = React.useState(0);
     const [currentText, setCurrentText] = React.useState('');
-    const [currentFont, setCurrentFont] = React.useState('serif');
+    const [currentFont, setCurrentFont] = React.useState("'Noto Serif JP', serif");
     const [currentSize, setCurrentSize] = React.useState(24);
     const [currentColor, setCurrentColor] = React.useState('#000000');
     const [isVertical, setIsVertical] = React.useState(false);
 
-    // フォントオプション
-    const fonts = [
-        { name: '明朝体', value: 'serif' },
-        { name: 'ゴシック体', value: 'sans-serif' },
-        { name: '楷書体', value: 'cursive' }
-    ];
+// FontSelector コンポーネント
+    const FontSelector = () => {
+        const categories = [
+            {
+                name: '和文フォント',
+                fonts: fonts.filter(f => 
+                    ['明朝体', 'ゴシック体', '毛筆体', '春の海明朝', '丸ゴシック', 'クレナイド']
+                    .includes(f.name)
+                )
+            },
+            {
+                name: 'デザインフォント',
+                fonts: fonts.filter(f => 
+                    ['モノマニアック', 'ガムジャ']
+                    .includes(f.name)
+                )
+            }
+        ];
+
+        return (
+            <div className="font-selector">
+                <label>フォント</label>
+                {categories.map(category => (
+                    <div key={category.name} className="font-category">
+                        <h4 className="category-title">{category.name}</h4>
+                        <div className="font-samples">
+                            {category.fonts.map(font => (
+                                <div 
+                                    key={font.value}
+                                    className={`font-sample ${currentFont === font.value ? 'selected' : ''}`}
+                                    onClick={() => setCurrentFont(font.value)}
+                                >
+                                    <span 
+                                        className="sample-text"
+                                        style={{ fontFamily: font.value }}
+                                    >
+                                        {font.sample}
+                                    </span>
+                                    <span className="font-name">{font.name}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    };
 
     // イメージ処理関連の関数
     const handleImageUpload = (event) => {
@@ -201,7 +286,7 @@ const NewYearCardEditor = () => {
         updateSelectedText();
     }, [currentText, currentFont, currentSize, currentColor, isVertical]);
 
-    // UI レンダリング
+// UI レンダリング
     return (
         <div className="editor-container">
             {/* メインエディター領域 */}
@@ -285,17 +370,7 @@ const NewYearCardEditor = () => {
                         </button>
                     </div>
 
-                    <select 
-                        className="font-select"
-                        value={currentFont}
-                        onChange={(e) => setCurrentFont(e.target.value)}
-                    >
-                        {fonts.map(font => (
-                            <option key={font.value} value={font.value}>
-                                {font.name}
-                            </option>
-                        ))}
-                    </select>
+                    <FontSelector />
 
                     <input
                         type="text"
