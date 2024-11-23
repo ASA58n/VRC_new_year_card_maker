@@ -88,11 +88,15 @@
 
         /* テキスト要素 */
         .text-element {
-            position: absolute;
-            cursor: move;
-            padding: 4px;
-            pointer-events: auto;
+            /* 既存のスタイルに追加 */
+            will-change: transform;
+            touch-action: none;
+            -webkit-user-select: none;
             user-select: none;
+        }
+        
+        .text-element:active {
+            cursor: grabbing;
         }
 
         .text-element:hover {
