@@ -803,17 +803,22 @@ const NewYearCardEditor = () => {
     }, [selectedLayout]);
     
     // レンダリング部分
-    return (
+return (
         <div className="editor-container">
             {/* メインエディター領域 */}
-            <div className="editor-main">
+            <div className="editor-main" style={editorStyle}>
                 {selectedImage ? (
                     <>
                         <img 
                             src={selectedImage} 
                             alt="プレビュー" 
                             className="preview-image"
-                            style={getImageStyle()}
+                            style={{
+                                ...getImageStyle(),
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover'
+                            }}
                         />
                         <div className="text-layer">
                             {/* テキスト要素 */}
@@ -869,7 +874,7 @@ const NewYearCardEditor = () => {
                         </div>
                     </>
                 ) : (
-                    <div style={{textAlign: 'center'}}>
+                    <div style={{textAlign: 'center', padding: '20px'}}>
                         <p>画像をアップロードしてください</p>
                         <input
                             type="file"
@@ -901,7 +906,12 @@ const NewYearCardEditor = () => {
                 >
                     スタンプ
                 </button>
-                <button className="btn">レイアウト</button>
+                <button 
+                    className={`btn ${showLayoutControls ? 'btn-primary' : ''}`}
+                    onClick={() => handleToolbarClick('layout')}
+                >
+                    レイアウト
+                </button>
             </div>
 
             {/* テキストコントロールパネル */}
@@ -1016,6 +1026,16 @@ const NewYearCardEditor = () => {
                 </div>
             )}
 
+            {/* レイアウトコントロールパネル */}
+            {showLayoutControls && selectedImage && (
+                <div className="control-panel">
+                    <LayoutSelector
+                        selectedLayout={selectedLayout}
+                        onLayoutSelect={setSelectedLayout}
+                    />
+                </div>
+            )}
+
             {/* チュートリアル */}
             {showTutorial && (
                 <div className="tutorial">
@@ -1034,10 +1054,18 @@ const NewYearCardEditor = () => {
                 </div>
             )}
 
-            {/* 保存ボタン */}
-            <button className="btn btn-primary" style={{width: '100%', marginTop: '20px'}}>
-                保存する
-            </button>
+            {/* アクションボタン */}
+            <div className="action-buttons" style={{width: '100%', marginTop: '20px', display: 'flex', gap: '10px'}}>
+                {selectedImage && (
+                    <button 
+                        className="btn btn-primary" 
+                        onClick={handleDownload}
+                        style={{flex: 1}}
+                    >
+                        画像をダウンロード
+                    </button>
+                )}
+            </div>
         </div>
     );
 };
