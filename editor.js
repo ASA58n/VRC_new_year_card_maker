@@ -1044,16 +1044,6 @@ const NewYearCardEditor = () => {
                 </div>
             )}
 
-            {/* レイアウトコントロールパネル */}
-            {showLayoutControls && selectedImage && (
-                <div className="control-panel">
-                    <LayoutSelector
-                        selectedLayout={selectedLayout}
-                        onLayoutSelect={setSelectedLayout}
-                    />
-                </div>
-            )}
-
             {/* チュートリアル */}
             {showTutorial && (
                 <div className="tutorial">
