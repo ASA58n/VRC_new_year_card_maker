@@ -158,8 +158,11 @@ const NewYearCardEditor = () => {
 
 // FontSelector コンポーネント
     const FontSelector = () => {
+        const [expandedCategory, setExpandedCategory] = React.useState(null);
+        
         const categories = [
             {
+                id: 'japanese',
                 name: '和文フォント',
                 fonts: fonts.filter(f => 
                     ['明朝体', 'ゴシック体', '毛筆体', '春の海明朝', '丸ゴシック', 'クレナイド']
@@ -167,6 +170,7 @@ const NewYearCardEditor = () => {
                 )
             },
             {
+                id: 'design',
                 name: 'デザインフォント',
                 fonts: fonts.filter(f => 
                     ['モノマニアック', 'ガムジャ']
@@ -175,29 +179,68 @@ const NewYearCardEditor = () => {
             }
         ];
 
+        // 現在選択されているフォントの情報を取得
+        const selectedFont = fonts.find(f => f.value === currentFont);
+
         return (
             <div className="font-selector">
-                <label>フォント</label>
+                <div className="font-preview">
+                    <label>フォント</label>
+                    <div 
+                        className="current-font-sample"
+                        onClick={() => setExpandedCategory(expandedCategory ? null : 'japanese')}
+                    >
+                        <span 
+                            className="sample-text"
+                            style={{ fontFamily: selectedFont.value }}
+                        >
+                            {selectedFont.sample}
+                        </span>
+                        <span className="font-name">{selectedFont.name}</span>
+                        <span className="expand-icon">
+                            {expandedCategory ? '▼' : '▶'}
+                        </span>
+                    </div>
+                </div>
+
                 {categories.map(category => (
-                    <div key={category.name} className="font-category">
-                        <h4 className="category-title">{category.name}</h4>
-                        <div className="font-samples">
-                            {category.fonts.map(font => (
-                                <div 
-                                    key={font.value}
-                                    className={`font-sample ${currentFont === font.value ? 'selected' : ''}`}
-                                    onClick={() => setCurrentFont(font.value)}
-                                >
-                                    <span 
-                                        className="sample-text"
-                                        style={{ fontFamily: font.value }}
+                    <div 
+                        key={category.id} 
+                        className={`font-category ${expandedCategory === category.id ? 'expanded' : ''}`}
+                    >
+                        <h4 
+                            className="category-title"
+                            onClick={() => setExpandedCategory(
+                                expandedCategory === category.id ? null : category.id
+                            )}
+                        >
+                            {category.name}
+                            <span className="expand-icon">
+                                {expandedCategory === category.id ? '▼' : '▶'}
+                            </span>
+                        </h4>
+                        {expandedCategory === category.id && (
+                            <div className="font-samples">
+                                {category.fonts.map(font => (
+                                    <div 
+                                        key={font.value}
+                                        className={`font-sample ${currentFont === font.value ? 'selected' : ''}`}
+                                        onClick={() => {
+                                            setCurrentFont(font.value);
+                                            setExpandedCategory(null);
+                                        }}
                                     >
-                                        {font.sample}
-                                    </span>
-                                    <span className="font-name">{font.name}</span>
-                                </div>
-                            ))}
-                        </div>
+                                        <span 
+                                            className="sample-text"
+                                            style={{ fontFamily: font.value }}
+                                        >
+                                            {font.sample}
+                                        </span>
+                                        <span className="font-name">{font.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>
