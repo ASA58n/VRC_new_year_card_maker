@@ -329,8 +329,14 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
 };
 
 // StampSelector コンポーネント
-// StampSelector コンポーネント
-const StampSelector = React.memo(({ onPreviewStamp, onConfirmStamp, onCancelStamp, isPreviewMode }) => {
+const StampSelector = React.memo(({ 
+    onPreviewStamp, 
+    onConfirmStamp, 
+    onCancelStamp, 
+    onDeleteStamp,
+    isPreviewMode, 
+    isEditing    // 既存スタンプの編集中かどうか
+}) => {
     const [uploadedStamps, setUploadedStamps] = React.useState([]);
 
     // 画像アップロード処理
@@ -377,11 +383,11 @@ const StampSelector = React.memo(({ onPreviewStamp, onConfirmStamp, onCancelStam
         onPreviewStamp(stamp.src, { width, height });
     };
 
-    // プレビューモード時のUI
-    if (isPreviewMode) {
+    // プレビューモードまたは編集モード時のUI
+    if (isPreviewMode || isEditing) {
         return (
             <div className="stamp-selector">
-                <h4>スタンプを配置</h4>
+                <h4>{isEditing ? 'スタンプの編集' : 'スタンプを配置'}</h4>
                 <p>画像上の好きな位置にドラッグして配置し、サイズを調整してください</p>
                 <div className="preview-actions">
                     <button 
@@ -391,6 +397,15 @@ const StampSelector = React.memo(({ onPreviewStamp, onConfirmStamp, onCancelStam
                     >
                         確定
                     </button>
+                    {isEditing ? (
+                        <button 
+                            className="btn btn-danger"
+                            onClick={onDeleteStamp}
+                            style={{marginRight: '10px'}}
+                        >
+                            削除
+                        </button>
+                    ) : null}
                     <button 
                         className="btn"
                         onClick={onCancelStamp}
