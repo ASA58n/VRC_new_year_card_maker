@@ -493,6 +493,40 @@ const StampSelector = React.memo(({
     );
 });
 
+// レイアウトの設定
+const LAYOUT_PRESETS = [
+    { id: 'portrait', name: '縦型', ratio: 2 / 3, width: 800, height: 1200 },     // 2:3
+    { id: 'landscape', name: '横型', ratio: 3 / 2, width: 1200, height: 800 },    // 3:2
+    { id: 'square', name: '正方形', ratio: 1, width: 1000, height: 1000 },        // 1:1
+    { id: 'postcard', name: 'はがき', ratio: 100 / 148, width: 1000, height: 1480 } // はがきサイズ比
+];
+
+// LayoutSelector コンポーネント
+const LayoutSelector = React.memo(({ selectedLayout, onLayoutSelect }) => {
+    return (
+        <div className="layout-selector">
+            <h4>レイアウト設定</h4>
+            <div className="layout-options">
+                {LAYOUT_PRESETS.map(layout => (
+                    <div 
+                        key={layout.id}
+                        className={`layout-option ${selectedLayout?.id === layout.id ? 'selected' : ''}`}
+                        onClick={() => onLayoutSelect(layout)}
+                    >
+                        <div 
+                            className="layout-preview"
+                            style={{
+                                aspectRatio: layout.ratio
+                            }}
+                        />
+                        <span className="layout-name">{layout.name}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+});
+
 // メインの NewYearCardEditor コンポーネント
 const NewYearCardEditor = () => {
     // 状態管理
@@ -660,9 +694,10 @@ const NewYearCardEditor = () => {
         setShowAdjustments(tool === 'adjust');
         setShowTextControls(tool === 'text');
         setShowStampControls(tool === 'stamp');
+        setShowLayoutControls(tool === 'layout');
     };
     
-    // NewYearCardEditor コンポーネント内の新しいテキストを追加する関数
+    // 新しいテキストを追加する関数
     const handleAddText = () => {
         const newElement = {
             id: Date.now(),
@@ -689,6 +724,84 @@ const NewYearCardEditor = () => {
         }
     }, []);
 
+    const [showLayoutControls, setShowLayoutControls] = React.useState(false);
+    const [selectedLayout, setSelectedLayout] = React.useState(LAYOUT_PRESETS[0]);
+    const [editorScale, setEditorScale] = React.useState(1);
+
+    // エディタのサイズを計算する関数
+    const calculateEditorSize = React.useCallback(() => {
+        const containerWidth = 800; // エディタコンテナの最大幅
+        const containerHeight = 600; // エディタコンテナの最大高さ
+        
+        let targetWidth = selectedLayout.width;
+        let targetHeight = selectedLayout.height;
+        
+        // コンテナに合わせてスケールを計算
+        const widthScale = containerWidth / targetWidth;
+        const heightScale = containerHeight / targetHeight;
+        const scale = Math.min(widthScale, heightScale);
+        
+        setEditorScale(scale);
+        
+        return {
+            width: targetWidth * scale,
+            height: targetHeight * scale
+        };
+    }, [selectedLayout]);
+    
+    // メインエディタ領域のスタイルを更新
+    const editorStyle = React.useMemo(() => {
+        const size = calculateEditorSize();
+        return {
+            width: `${size.width}px`,
+            height: `${size.height}px`,
+            position: 'relative',
+            overflow: 'hidden',
+            margin: '0 auto',
+            backgroundColor: '#f5f5f5',
+            border: '2px dashed #ccc'
+        };
+    }, [calculateEditorSize]);
+    
+    // ダウンロード処理
+    const handleDownload = React.useCallback(async () => {
+        const editorElement = document.querySelector('.editor-main');
+        if (!editorElement) return;
+    
+        try {
+            // html2canvasをインポート（CDNから読み込む必要があります）
+            const html2canvas = window.html2canvas;
+            if (!html2canvas) {
+                throw new Error('html2canvas is not loaded');
+            }
+    
+            // 元のスケールを保存
+            const originalTransform = editorElement.style.transform;
+            
+            // スケールを一時的に1に設定（フルサイズでレンダリング）
+            editorElement.style.transform = 'none';
+            
+            const canvas = await html2canvas(editorElement, {
+                width: selectedLayout.width,
+                height: selectedLayout.height,
+                scale: 1,
+                backgroundColor: null
+            });
+    
+            // スケールを元に戻す
+            editorElement.style.transform = originalTransform;
+    
+            // Canvas を画像に変換
+            const link = document.createElement('a');
+            link.download = '年賀状.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (error) {
+            console.error('Download failed:', error);
+            alert('ダウンロードに失敗しました。');
+        }
+    }, [selectedLayout]);
+    
     // レンダリング部分
     return (
         <div className="editor-container">
