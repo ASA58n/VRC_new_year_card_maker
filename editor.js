@@ -494,40 +494,6 @@ const StampSelector = React.memo(({
     );
 });
 
-// レイアウトの設定
-// const LAYOUT_PRESETS = [
-//     { id: 'portrait', name: '縦型', ratio: 2 / 3, width: 800, height: 1200 },     // 2:3
-//     { id: 'landscape', name: '横型', ratio: 3 / 2, width: 1200, height: 800 },    // 3:2
-//     { id: 'square', name: '正方形', ratio: 1, width: 1000, height: 1000 },        // 1:1
-//     { id: 'postcard', name: 'はがき', ratio: 100 / 148, width: 1000, height: 1480 } // はがきサイズ比
-// ];
-
-// // LayoutSelector コンポーネント
-// const LayoutSelector = React.memo(({ selectedLayout, onLayoutSelect }) => {
-//     return (
-//         <div className="layout-selector">
-//             <h4>レイアウト設定</h4>
-//             <div className="layout-options">
-//                 {LAYOUT_PRESETS.map(layout => (
-//                     <div 
-//                         key={layout.id}
-//                         className={`layout-option ${selectedLayout?.id === layout.id ? 'selected' : ''}`}
-//                         onClick={() => onLayoutSelect(layout)}
-//                     >
-//                         <div 
-//                             className="layout-preview"
-//                             style={{
-//                                 aspectRatio: layout.ratio
-//                             }}
-//                         />
-//                         <span className="layout-name">{layout.name}</span>
-//                     </div>
-//                 ))}
-//             </div>
-//         </div>
-//     );
-// });
-
 // メインの NewYearCardEditor コンポーネント
 const NewYearCardEditor = () => {
     // 基本的な状態管理
