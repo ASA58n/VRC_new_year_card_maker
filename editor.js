@@ -94,8 +94,18 @@ const NewYearCardEditor = () => {
     });
 
     // テキスト関連の状態
-    const [textElements, setTextElements] = React.useState([]);
-    const [selectedTextIndex, setSelectedTextIndex] = React.useState(null);
+    const [textElements, setTextElements] = React.useState([{
+        id: Date.now(),
+        text: '',
+        position: { x: 50, y: 50 },
+        style: {
+            fontFamily: 'serif',
+            fontSize: '24px',
+            color: '#000000',
+            writingMode: 'horizontal-tb'
+        }
+    }]);
+    const [selectedTextIndex, setSelectedTextIndex] = React.useState(0);
     const [currentText, setCurrentText] = React.useState('');
     const [currentFont, setCurrentFont] = React.useState('serif');
     const [currentSize, setCurrentSize] = React.useState(24);
@@ -127,11 +137,9 @@ const NewYearCardEditor = () => {
 
     // テキスト処理関連の関数
     const handleAddText = () => {
-        if (!currentText.trim()) return;
-        
         const newElement = {
             id: Date.now(),
-            text: currentText,
+            text: '',
             position: { x: 50, y: 50 },
             style: {
                 fontFamily: currentFont,
@@ -142,7 +150,6 @@ const NewYearCardEditor = () => {
         };
 
         setTextElements([...textElements, newElement]);
-        setCurrentText('');
         setSelectedTextIndex(textElements.length);
     };
 
@@ -158,7 +165,7 @@ const NewYearCardEditor = () => {
     const handleTextSelect = (index) => {
         setSelectedTextIndex(index);
         const element = textElements[index];
-        setCurrentText(element.text);
+        setCurrentText(element.text || '');
         setCurrentFont(element.style.fontFamily);
         setCurrentSize(parseInt(element.style.fontSize));
         setCurrentColor(element.style.color);
@@ -181,6 +188,13 @@ const NewYearCardEditor = () => {
         };
         setTextElements(updatedElements);
     };
+
+    // コンポーネントマウント時に最初のテキスト要素を選択
+    React.useEffect(() => {
+        if (textElements.length > 0) {
+            handleTextSelect(0);
+        }
+    }, []);
 
     // 選択されたテキストの更新を監視
     React.useEffect(() => {
@@ -288,7 +302,7 @@ const NewYearCardEditor = () => {
                         className="text-input"
                         value={currentText}
                         onChange={(e) => setCurrentText(e.target.value)}
-                        placeholder="テキストを入力"
+                        placeholder={`テキスト ${selectedTextIndex + 1}`}
                     />
 
                     <div className="text-controls">
@@ -319,7 +333,7 @@ const NewYearCardEditor = () => {
                         onClick={handleAddText}
                         style={{width: '100%', marginTop: '10px'}}
                     >
-                        テキストを追加
+                        新しいテキストを追加
                     </button>
                 </div>
             )}
