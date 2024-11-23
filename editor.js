@@ -834,11 +834,6 @@ const NewYearCardEditor = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, [calculateEditorSize]);
 
-    // レイアウト変更時の処理
-    React.useEffect(() => {
-        calculateEditorSize();
-    }, [selectedLayout, calculateEditorSize]);
-
     // レンダリング部分
     return (
         <div className="editor-container">
