@@ -157,8 +157,8 @@ const NewYearCardEditor = () => {
     const [isVertical, setIsVertical] = React.useState(false);
 
 // FontSelector コンポーネント
-    const FontSelector = () => {
-        const [expandedCategory, setExpandedCategory] = React.useState(null);
+    const FontSelector = React.memo(() => {
+        const [isExpanded, setIsExpanded] = React.useState(false);
         
         const categories = [
             {
@@ -182,13 +182,20 @@ const NewYearCardEditor = () => {
         // 現在選択されているフォントの情報を取得
         const selectedFont = fonts.find(f => f.value === currentFont);
 
+        // フォント選択ハンドラー
+        const handleFontSelect = React.useCallback((fontValue) => {
+            setCurrentFont(fontValue);
+            setIsExpanded(false);
+        }, []);
+
         return (
             <div className="font-selector">
+                {/* 現在選択中のフォントプレビュー（クリックで展開/折りたたみ） */}
                 <div className="font-preview">
                     <label>フォント</label>
                     <div 
                         className="current-font-sample"
-                        onClick={() => setExpandedCategory(expandedCategory ? null : 'japanese')}
+                        onClick={() => setIsExpanded(!isExpanded)}
                     >
                         <span 
                             className="sample-text"
@@ -196,56 +203,45 @@ const NewYearCardEditor = () => {
                         >
                             {selectedFont.sample}
                         </span>
-                        <span className="font-name">{selectedFont.name}</span>
-                        <span className="expand-icon">
-                            {expandedCategory ? '▼' : '▶'}
-                        </span>
+                        <div className="preview-footer">
+                            <span className="font-name">{selectedFont.name}</span>
+                            <span className="expand-icon">
+                                {isExpanded ? '▼' : '▶'}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                {categories.map(category => (
-                    <div 
-                        key={category.id} 
-                        className={`font-category ${expandedCategory === category.id ? 'expanded' : ''}`}
-                    >
-                        <h4 
-                            className="category-title"
-                            onClick={() => setExpandedCategory(
-                                expandedCategory === category.id ? null : category.id
-                            )}
-                        >
-                            {category.name}
-                            <span className="expand-icon">
-                                {expandedCategory === category.id ? '▼' : '▶'}
-                            </span>
-                        </h4>
-                        {expandedCategory === category.id && (
-                            <div className="font-samples">
-                                {category.fonts.map(font => (
-                                    <div 
-                                        key={font.value}
-                                        className={`font-sample ${currentFont === font.value ? 'selected' : ''}`}
-                                        onClick={() => {
-                                            setCurrentFont(font.value);
-                                            setExpandedCategory(null);
-                                        }}
-                                    >
-                                        <span 
-                                            className="sample-text"
-                                            style={{ fontFamily: font.value }}
+                {/* フォント選択パネル */}
+                {isExpanded && (
+                    <div className="font-selection-panel">
+                        {categories.map(category => (
+                            <div key={category.id} className="font-category">
+                                <h4 className="category-title">{category.name}</h4>
+                                <div className="font-samples">
+                                    {category.fonts.map(font => (
+                                        <div 
+                                            key={font.value}
+                                            className={`font-sample ${currentFont === font.value ? 'selected' : ''}`}
+                                            onClick={() => handleFontSelect(font.value)}
                                         >
-                                            {font.sample}
-                                        </span>
-                                        <span className="font-name">{font.name}</span>
-                                    </div>
-                                ))}
+                                            <span 
+                                                className="sample-text"
+                                                style={{ fontFamily: font.value }}
+                                            >
+                                                {font.sample}
+                                            </span>
+                                            <span className="font-name">{font.name}</span>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        )}
+                        ))}
                     </div>
-                ))}
+                )}
             </div>
         );
-    };
+    });
 
     // イメージ処理関連の関数
     const handleImageUpload = (event) => {
