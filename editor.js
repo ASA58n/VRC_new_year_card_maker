@@ -180,10 +180,10 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
             return;
         }
         setIsDragging(true);
-        // 修正点1: 親要素に対する相対位置を取得
+        const rect = elementRef.current.getBoundingClientRect();
         setDragOffset({
-            x: e.clientX - elementRef.current.offsetLeft,
-            y: e.clientY - elementRef.current.offsetTop
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
         });
         onDragStart();
         onSelect();
@@ -191,12 +191,11 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
 
     const handleMouseMove = (e) => {
         if (!isDragging) return;
-
-        // 修正点2: 親要素に対する相対座標を計算
+        
         const parentRect = elementRef.current.parentElement.getBoundingClientRect();
-        const x = e.clientX - parentRect.left - (elementRef.current.offsetLeft);
-        const y = e.clientY - parentRect.top - (elementRef.current.offsetTop);
-
+        const x = e.clientX - parentRect.left - dragOffset.x;
+        const y = e.clientY - parentRect.top - dragOffset.y;
+        
         onDrag({ x, y });
     };
 
@@ -496,15 +495,12 @@ const StampSelector = React.memo(({
 
 // メインの NewYearCardEditor コンポーネント
 const NewYearCardEditor = () => {
-    // 基本的な状態管理
+    // 状態管理
     const [selectedImage, setSelectedImage] = React.useState(null);
     const [showTutorial, setShowTutorial] = React.useState(true);
     const [showAdjustments, setShowAdjustments] = React.useState(false);
     const [showTextControls, setShowTextControls] = React.useState(false);
     const [showStampControls, setShowStampControls] = React.useState(false);
-    // showLayoutControls は削除
-
-    // 画像調整関連の状態
     const [adjustments, setAdjustments] = React.useState({
         brightness: 100,
         contrast: 100,
@@ -535,73 +531,33 @@ const NewYearCardEditor = () => {
     const [selectedStampIndex, setSelectedStampIndex] = React.useState(null);
     const [previewStamp, setPreviewStamp] = React.useState(null);
 
-    // レイアウト関連の状態
-    const [cropRect, setCropRect] = React.useState(null);
-    const [imageWidth, setImageWidth] = React.useState(0);
-    const [imageHeight, setImageHeight] = React.useState(0);
-
-    
-    // エディタスタイルの計算
-    const editorStyle = React.useMemo(() => {
-        if (!cropRect) return {};
-        const scale = Math.min(800 / cropRect.width, 600 / cropRect.height);
-        return {
-            width: `${cropRect.width * scale}px`,
-            height: `${cropRect.height * scale}px`,
-            position: 'relative',
-            overflow: 'hidden',
-            margin: '0 auto',
-            backgroundColor: '#f5f5f5',
-            border: '2px dashed #ccc'
-        };
-    }, [cropRect]);
-
-    // 画像スタイルの計算
-    const getImageStyle = () => ({
-        width: `${imageWidth}px`,
-        height: `${imageHeight}px`,
-        objectFit: 'contain',
-        marginLeft: `-${cropRect?.x || 0}px`,
-        marginTop: `-${cropRect?.y || 0}px`,
-        transform: `scale(${Math.min(800 / (imageWidth || 1), 600 / (imageHeight || 1))})`, // 画像全体を表示するスケーリング、0除算対策追加
-        transformOrigin: '0 0' // スケーリングの基準点を左上に設定
-    });
-
-    // ツールバーのトグル処理
-    const handleToolbarClick = (tool) => {
-        setShowAdjustments(tool === 'adjust');
-        setShowTextControls(tool === 'text');
-        setShowStampControls(tool === 'stamp');
-        // setShowLayoutControls は削除
-    };
-
-    // 初期テキスト要素の選択
-    React.useEffect(() => {
-        if (textElements.length > 0) {
-            handleTextSelect(0);
-        }
-    }, []);
-
     // 画像アップロード処理
     const handleImageUpload = (event) => {
         const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    setSelectedImage(e.target.result);
-                    setImageWidth(img.width);
-                    setImageHeight(img.height);
-                    setCropRect({ x: 0, y: 0, width: img.width, height: img.height });
-                };
-                img.src = e.target.result;
-            };
+            reader.onload = (e) => setSelectedImage(e.target.result);
             reader.readAsDataURL(file);
         }
     };
 
-    // テキスト関連のハンドラー
+    // 画像スタイル
+    const getImageStyle = () => ({
+        filter: `brightness(${adjustments.brightness}%) 
+                contrast(${adjustments.contrast}%) 
+                saturate(${adjustments.saturate}%)`
+    });
+
+    // テキスト関連の処理
+    const handleTextDrag = (index, position) => {
+        const updatedElements = [...textElements];
+        updatedElements[index] = {
+            ...updatedElements[index],
+            position
+        };
+        setTextElements(updatedElements);
+    };
+
     const handleTextSelect = (index) => {
         setSelectedTextIndex(index);
         const element = textElements[index];
@@ -610,33 +566,6 @@ const NewYearCardEditor = () => {
         setCurrentSize(parseInt(element.style.fontSize));
         setCurrentColor(element.style.color);
         setIsVertical(element.style.writingMode === 'vertical-rl');
-        setSelectedStampIndex(null); // スタンプの選択を解除
-    };
-
-    const handleTextDrag = (index, position) => {
-        const updatedElements = [...textElements];
-        updatedElements[index] = {
-            ...updatedElements[index],
-            position: position // スケーリング不要に修正
-        };
-        setTextElements(updatedElements);
-    };
-
-    const handleAddText = () => {
-        const newElement = {
-            id: Date.now(),
-            text: '',
-            position: { x: 50, y: 50 },
-            style: {
-                fontFamily: currentFont,
-                fontSize: `${currentSize}px`,
-                color: currentColor,
-                writingMode: isVertical ? 'vertical-rl' : 'horizontal-tb'
-            }
-        };
-        setTextElements(prev => [...prev, newElement]);
-        setSelectedTextIndex(textElements.length);
-        setCurrentText('');
     };
 
     const updateSelectedText = React.useCallback(() => {
@@ -655,77 +584,27 @@ const NewYearCardEditor = () => {
         };
         setTextElements(updatedElements);
     }, [selectedTextIndex, currentText, currentFont, currentSize, currentColor, isVertical, textElements]);
-
-    // テキスト更新の監視
+    
+    // useEffectの依存配列も更新
     React.useEffect(() => {
         updateSelectedText();
     }, [updateSelectedText]);
 
-// スタンプ関連のハンドラー
+    // スタンプ関連の処理
     const handlePreviewStamp = (src, size) => {
         const newStamp = {
             id: Date.now(),
             src,
             position: { x: 50, y: 50 },
-            size: size // editorScale を削除
+            size
         };
         setPreviewStamp(newStamp);
         setSelectedStampIndex(null);
-        setSelectedTextIndex(null);
-    };
-
-    const handleStampResize = (index, size) => {
-        if (previewStamp) {
-            setPreviewStamp(prev => ({
-                ...prev,
-                size: size // editorScale を削除
-            }));
-        } else if (selectedStampIndex !== null) {
-            const updatedElements = [...stampElements];
-            updatedElements[selectedStampIndex] = {
-                ...updatedElements[selectedStampIndex],
-                size: size // editorScale を削除
-            };
-            setStampElements(updatedElements);
-        }
-    };
-
-    const handleStampResize = (index, size) => {
-        if (previewStamp) {
-            setPreviewStamp(prev => ({
-                ...prev,
-                size: {
-                    width: size.width * editorScale,
-                    height: size.height * editorScale
-                }
-            }));
-        } else if (selectedStampIndex !== null) {
-            const updatedElements = [...stampElements];
-            const scaledSize = {
-                width: size.width * editorScale,
-                height: size.height * editorScale
-            };
-            updatedElements[selectedStampIndex] = {
-                ...updatedElements[selectedStampIndex],
-                size: scaledSize
-            };
-            setStampElements(updatedElements);
-        }
     };
 
     const handleConfirmStamp = () => {
         if (previewStamp) {
-            setStampElements(prev => [...prev, {
-                ...previewStamp,
-                position: {
-                    x: previewStamp.position.x / editorScale,
-                    y: previewStamp.position.y / editorScale
-                },
-                size: {
-                    width: previewStamp.size.width / editorScale,
-                    height: previewStamp.size.height / editorScale
-                }
-            }]);
+            setStampElements(prev => [...prev, previewStamp]);
             setPreviewStamp(null);
         } else if (selectedStampIndex !== null) {
             setSelectedStampIndex(null);
@@ -744,63 +623,82 @@ const NewYearCardEditor = () => {
         }
     };
 
-    // ダウンロード処理
-    const handleDownload = React.useCallback(async () => {
-        const editorElement = document.querySelector('.editor-main');
-        if (!editorElement || !cropRect || !selectedImage) return;
-
-        try {
-            const canvas = await html2canvas(editorElement, { backgroundColor: null, scale: 1 });
-            const ctx = canvas.getContext('2d');
-            const img = new Image();
-            img.src = selectedImage;
-            img.onload = () => {
-                ctx.drawImage(img, cropRect.x, cropRect.y, cropRect.width, cropRect.height, 0, 0, canvas.width, canvas.height);
-                const link = document.createElement('a');
-                link.download = `年賀状_${new Date().getTime()}.png`;
-                link.href = canvas.toDataURL('image/png');
-                link.click();
+    const handleStampDrag = (index, position) => {
+        if (previewStamp) {
+            setPreviewStamp(prev => ({
+                ...prev,
+                position
+            }));
+        } else if (selectedStampIndex !== null) {
+            const updatedElements = [...stampElements];
+            updatedElements[selectedStampIndex] = {
+                ...updatedElements[selectedStampIndex],
+                position
             };
-        } catch (error) {
-            console.error('Download failed:', error);
-            alert('ダウンロードに失敗しました。');
+            setStampElements(updatedElements);
         }
-    }, [selectedImage, cropRect]);
-
-    // 簡略化された描画範囲調整（スライダーによる調整）
-    const handleCropChange = (property, value) => {
-        setCropRect(prev => ({ ...prev, [property]: value }));
     };
 
-
-    // エラー処理用の関数
-    const handleError = (error, message) => {
-        console.error(message, error);
-        alert(`エラーが発生しました。\n${message}`);
+    const handleStampResize = (index, size) => {
+        if (previewStamp) {
+            setPreviewStamp(prev => ({
+                ...prev,
+                size
+            }));
+        } else if (selectedStampIndex !== null) {
+            const updatedElements = [...stampElements];
+            updatedElements[selectedStampIndex] = {
+                ...updatedElements[selectedStampIndex],
+                size
+            };
+            setStampElements(updatedElements);
+        }
     };
 
-    // 画面サイズ変更時の処理 
-    React.useEffect(() => {
-        const handleResize = () => {
-            // calculateEditorSize を削除
-            // 代わりに、editorStyle の再計算をトリガーする必要があるかもしれません。
-            // しかし、この段階ではcropRectの変化で十分なため、特に処理は不要です。
+    // ツールバーのトグル処理
+    const handleToolbarClick = (tool) => {
+        setShowAdjustments(tool === 'adjust');
+        setShowTextControls(tool === 'text');
+        setShowStampControls(tool === 'stamp');
+    };
+    
+    // NewYearCardEditor コンポーネント内の新しいテキストを追加する関数
+    const handleAddText = () => {
+        const newElement = {
+            id: Date.now(),
+            text: '',
+            position: { x: 50, y: 50 },
+            style: {
+                fontFamily: currentFont,
+                fontSize: `${currentSize}px`,
+                color: currentColor,
+                writingMode: isVertical ? 'vertical-rl' : 'horizontal-tb'
+            }
         };
-
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
-    }, []); // calculateEditorSize を依存配列から削除
+        setTextElements(prev => [...prev, newElement]);
+        // 新しい要素のインデックスを設定
+        const newIndex = textElements.length;
+        setSelectedTextIndex(newIndex);
+        setCurrentText('');  // 入力フィールドをクリア
+    };
+    
+    // 初期テキスト要素の選択
+    React.useEffect(() => {
+        if (textElements.length > 0) {
+            handleTextSelect(0);
+        }
+    }, []);
 
     // レンダリング部分
     return (
         <div className="editor-container">
             {/* メインエディター領域 */}
-            <div className="editor-main" style={editorStyle}>
+            <div className="editor-main">
                 {selectedImage ? (
                     <>
-                        <img
-                            src={selectedImage}
-                            alt="プレビュー"
+                        <img 
+                            src={selectedImage} 
+                            alt="プレビュー" 
                             className="preview-image"
                             style={getImageStyle()}
                         />
@@ -817,9 +715,9 @@ const NewYearCardEditor = () => {
                                         handleTextSelect(index);
                                         setSelectedStampIndex(null);
                                     }}
-                                    onDragStart={() => { }}
+                                    onDragStart={() => {}}
                                     onDrag={(pos) => handleTextDrag(index, pos)}
-                                    onDragEnd={() => { }}
+                                    onDragEnd={() => {}}
                                 />
                             ))}
                             {/* スタンプ要素 */}
@@ -834,9 +732,9 @@ const NewYearCardEditor = () => {
                                         setSelectedStampIndex(index);
                                         setSelectedTextIndex(null);
                                     }}
-                                    onDragStart={() => { }}
+                                    onDragStart={() => {}}
                                     onDrag={(pos) => handleStampDrag(index, pos)}
-                                    onDragEnd={() => { }}
+                                    onDragEnd={() => {}}
                                     onResize={(size) => handleStampResize(index, size)}
                                 />
                             ))}
@@ -848,23 +746,23 @@ const NewYearCardEditor = () => {
                                     position={previewStamp.position}
                                     size={previewStamp.size}
                                     isSelected={true}
-                                    onSelect={() => { }}
-                                    onDragStart={() => { }}
+                                    onSelect={() => {}}
+                                    onDragStart={() => {}}
                                     onDrag={(pos) => handleStampDrag(null, pos)}
-                                    onDragEnd={() => { }}
+                                    onDragEnd={() => {}}
                                     onResize={(size) => handleStampResize(null, size)}
                                 />
                             )}
                         </div>
                     </>
                 ) : (
-                    <div style={{ textAlign: 'center', padding: '20px' }}>
+                    <div style={{textAlign: 'center'}}>
                         <p>画像をアップロードしてください</p>
                         <input
                             type="file"
                             accept="image/*"
                             onChange={handleImageUpload}
-                            style={{ marginTop: '10px' }}
+                            style={{marginTop: '10px'}}
                         />
                     </div>
                 )}
@@ -872,16 +770,25 @@ const NewYearCardEditor = () => {
 
             {/* ツールバー */}
             <div className="toolbar">
-                <button className={`btn ${showAdjustments ? 'btn-primary' : ''}`} onClick={() => handleToolbarClick('adjust')}>
+                <button 
+                    className={`btn ${showAdjustments ? 'btn-primary' : ''}`}
+                    onClick={() => handleToolbarClick('adjust')}
+                >
                     画像調整
                 </button>
-                <button className={`btn ${showTextControls ? 'btn-primary' : ''}`} onClick={() => handleToolbarClick('text')}>
+                <button 
+                    className={`btn ${showTextControls ? 'btn-primary' : ''}`}
+                    onClick={() => handleToolbarClick('text')}
+                >
                     文字入力
                 </button>
-                <button className={`btn ${showStampControls ? 'btn-primary' : ''}`} onClick={() => handleToolbarClick('stamp')}>
+                <button 
+                    className={`btn ${showStampControls ? 'btn-primary' : ''}`}
+                    onClick={() => handleToolbarClick('stamp')}
+                >
                     スタンプ
                 </button>
-                {/* Layoutボタンは削除 */}
+                <button className="btn">レイアウト</button>
             </div>
 
             {/* テキストコントロールパネル */}
@@ -1014,24 +921,10 @@ const NewYearCardEditor = () => {
                 </div>
             )}
 
-            {/* 描画範囲調整スライダー */}
-            {selectedImage && (
-                <div>
-                    <label>X座標:</label>
-                    <input type="range" min="0" max={imageWidth} value={cropRect?.x || 0} onChange={e => handleCropChange('x', parseInt(e.target.value))} />
-                    <label>Y座標:</label>
-                    <input type="range" min="0" max={imageHeight} value={cropRect?.y || 0} onChange={e => handleCropChange('y', parseInt(e.target.value))} />
-                    <label>幅:</label>
-                    <input type="range" min="1" max={imageWidth} value={cropRect?.width || imageWidth} onChange={e => handleCropChange('width', parseInt(e.target.value))} />
-                    <label>高さ:</label>
-                    <input type="range" min="1" max={imageHeight} value={cropRect?.height || imageHeight} onChange={e => handleCropChange('height', parseInt(e.target.value))} />
-                </div>
-            )}
-
-            {/* アクションボタン */}
-            <div className="action-buttons">
-                {selectedImage && <button className="btn btn-primary" onClick={handleDownload}>画像をダウンロード</button>}
-            </div>
+            {/* 保存ボタン */}
+            <button className="btn btn-primary" style={{width: '100%', marginTop: '20px'}}>
+                保存する
+            </button>
         </div>
     );
 };
