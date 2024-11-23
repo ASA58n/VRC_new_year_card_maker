@@ -129,7 +129,7 @@
         }
 
         /* フォームコントロール */
-        .font-selector {
+        .-selector {
             margin-bottom: 20px;
         }
         
@@ -185,6 +185,58 @@
             font-family: sans-serif;
         }
 
+        .font-preview {
+            margin-bottom: 10px;
+        }
+        
+        .current-font-sample {
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.2s ease;
+            background-color: #fff;
+        }
+        
+        .current-font-sample:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .category-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 8px 0;
+        }
+        
+        .expand-icon {
+            font-size: 0.8em;
+            color: #666;
+        }
+        
+        .font-category {
+            margin-bottom: 10px;
+        }
+        
+        .font-samples {
+            animation: slideDown 0.2s ease-out;
+        }
+        
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
         .text-input {
             width: 100%;
             padding: 8px;
