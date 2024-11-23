@@ -536,7 +536,7 @@ const NewYearCardEditor = () => {
     const [showAdjustments, setShowAdjustments] = React.useState(false);
     const [showTextControls, setShowTextControls] = React.useState(false);
     const [showStampControls, setShowStampControls] = React.useState(false);
-    const [showLayoutControls, setShowLayoutControls] = React.useState(false);
+    // showLayoutControls は削除
 
     // 画像調整関連の状態
     const [adjustments, setAdjustments] = React.useState({
@@ -570,32 +570,9 @@ const NewYearCardEditor = () => {
     const [previewStamp, setPreviewStamp] = React.useState(null);
 
     // レイアウト関連の状態
-    // const [selectedLayout, setSelectedLayout] = React.useState(LAYOUT_PRESETS[0]);
-    // const [editorScale, setEditorScale] = React.useState(1);
     const [cropRect, setCropRect] = React.useState(null);
     const [imageWidth, setImageWidth] = React.useState(0);
     const [imageHeight, setImageHeight] = React.useState(0);
-
-    // エディタのサイズを計算するヘルパー関数
-    const calculateEditorSize = React.useCallback(() => {
-        const containerWidth = 800; // エディタコンテナの最大幅
-        const containerHeight = 600; // エディタコンテナの最大高さ
-        
-        let targetWidth = selectedLayout.width;
-        let targetHeight = selectedLayout.height;
-        
-        // コンテナに合わせてスケールを計算
-        const widthScale = containerWidth / targetWidth;
-        const heightScale = containerHeight / targetHeight;
-        const scale = Math.min(widthScale, heightScale);
-        
-        setEditorScale(scale);
-        
-        return {
-            width: targetWidth * scale,
-            height: targetHeight * scale
-        };
-    }, [selectedLayout]);
 
     // エディタスタイルの計算
     const editorStyle = React.useMemo(() => {
@@ -619,7 +596,7 @@ const NewYearCardEditor = () => {
         objectFit: 'contain',
         marginLeft: `-${cropRect?.x || 0}px`,
         marginTop: `-${cropRect?.y || 0}px`,
-        transform: `scale(${Math.min(800/imageWidth, 600/imageHeight)})`, // 画像全体を表示するスケーリング
+        transform: `scale(${Math.min(800 / (imageWidth || 1), 600 / (imageHeight || 1))})`, // 画像全体を表示するスケーリング、0除算対策追加
         transformOrigin: '0 0' // スケーリングの基準点を左上に設定
     });
 
@@ -628,7 +605,7 @@ const NewYearCardEditor = () => {
         setShowAdjustments(tool === 'adjust');
         setShowTextControls(tool === 'text');
         setShowStampControls(tool === 'stamp');
-        setShowLayoutControls(tool === 'layout');
+        // setShowLayoutControls は削除
     };
 
     // 初期テキスト要素の選択
@@ -812,39 +789,6 @@ const NewYearCardEditor = () => {
         }
     };
 
-    // レイアウトの変更処理
-    const handleLayoutChange = React.useCallback((newLayout) => {
-        setSelectedLayout(newLayout);
-        
-        // 既存の要素の位置とサイズを新しいレイアウトに合わせて調整
-        const scaleRatio = {
-            x: newLayout.width / selectedLayout.width,
-            y: newLayout.height / selectedLayout.height
-        };
-
-        // テキスト要素の位置を調整
-        setTextElements(prev => prev.map(element => ({
-            ...element,
-            position: {
-                x: element.position.x * scaleRatio.x,
-                y: element.position.y * scaleRatio.y
-            }
-        })));
-
-        // スタンプ要素の位置とサイズを調整
-        setStampElements(prev => prev.map(element => ({
-            ...element,
-            position: {
-                x: element.position.x * scaleRatio.x,
-                y: element.position.y * scaleRatio.y
-            },
-            size: {
-                width: element.size.width * scaleRatio.x,
-                height: element.size.height * scaleRatio.y
-            }
-        })));
-    }, [selectedLayout]);
-
     // ダウンロード処理
     const handleDownload = React.useCallback(async () => {
         const editorElement = document.querySelector('.editor-main');
@@ -868,11 +812,11 @@ const NewYearCardEditor = () => {
         }
     }, [selectedImage, cropRect]);
 
-
     // 簡略化された描画範囲調整（スライダーによる調整）
     const handleCropChange = (property, value) => {
         setCropRect(prev => ({ ...prev, [property]: value }));
     };
+
 
     // エラー処理用の関数
     const handleError = (error, message) => {
@@ -895,23 +839,18 @@ const NewYearCardEditor = () => {
         calculateEditorSize();
     }, [selectedLayout, calculateEditorSize]);
 
-        // レンダリング部分
-return (
+    // レンダリング部分
+    return (
         <div className="editor-container">
             {/* メインエディター領域 */}
             <div className="editor-main" style={editorStyle}>
                 {selectedImage ? (
                     <>
-                        <img 
-                            src={selectedImage} 
-                            alt="プレビュー" 
+                        <img
+                            src={selectedImage}
+                            alt="プレビュー"
                             className="preview-image"
-                            style={{
-                                ...getImageStyle(),
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover'
-                            }}
+                            style={getImageStyle()}
                         />
                         <div className="text-layer">
                             {/* テキスト要素 */}
@@ -926,9 +865,9 @@ return (
                                         handleTextSelect(index);
                                         setSelectedStampIndex(null);
                                     }}
-                                    onDragStart={() => {}}
+                                    onDragStart={() => { }}
                                     onDrag={(pos) => handleTextDrag(index, pos)}
-                                    onDragEnd={() => {}}
+                                    onDragEnd={() => { }}
                                 />
                             ))}
                             {/* スタンプ要素 */}
@@ -943,9 +882,9 @@ return (
                                         setSelectedStampIndex(index);
                                         setSelectedTextIndex(null);
                                     }}
-                                    onDragStart={() => {}}
+                                    onDragStart={() => { }}
                                     onDrag={(pos) => handleStampDrag(index, pos)}
-                                    onDragEnd={() => {}}
+                                    onDragEnd={() => { }}
                                     onResize={(size) => handleStampResize(index, size)}
                                 />
                             ))}
@@ -957,28 +896,23 @@ return (
                                     position={previewStamp.position}
                                     size={previewStamp.size}
                                     isSelected={true}
-                                    onSelect={() => {}}
-                                    onDragStart={() => {}}
+                                    onSelect={() => { }}
+                                    onDragStart={() => { }}
                                     onDrag={(pos) => handleStampDrag(null, pos)}
-                                    onDragEnd={() => {}}
+                                    onDragEnd={() => { }}
                                     onResize={(size) => handleStampResize(null, size)}
                                 />
-                            )}
-                            {!selectedImage && (
-                                <div>
-                                    <input type="file" accept="image/*" onChange={handleImageUpload} />
-                                </div>
                             )}
                         </div>
                     </>
                 ) : (
-                    <div style={{textAlign: 'center', padding: '20px'}}>
+                    <div style={{ textAlign: 'center', padding: '20px' }}>
                         <p>画像をアップロードしてください</p>
                         <input
                             type="file"
                             accept="image/*"
                             onChange={handleImageUpload}
-                            style={{marginTop: '10px'}}
+                            style={{ marginTop: '10px' }}
                         />
                     </div>
                 )}
@@ -986,30 +920,16 @@ return (
 
             {/* ツールバー */}
             <div className="toolbar">
-                <button 
-                    className={`btn ${showAdjustments ? 'btn-primary' : ''}`}
-                    onClick={() => handleToolbarClick('adjust')}
-                >
+                <button className={`btn ${showAdjustments ? 'btn-primary' : ''}`} onClick={() => handleToolbarClick('adjust')}>
                     画像調整
                 </button>
-                <button 
-                    className={`btn ${showTextControls ? 'btn-primary' : ''}`}
-                    onClick={() => handleToolbarClick('text')}
-                >
+                <button className={`btn ${showTextControls ? 'btn-primary' : ''}`} onClick={() => handleToolbarClick('text')}>
                     文字入力
                 </button>
-                <button 
-                    className={`btn ${showStampControls ? 'btn-primary' : ''}`}
-                    onClick={() => handleToolbarClick('stamp')}
-                >
+                <button className={`btn ${showStampControls ? 'btn-primary' : ''}`} onClick={() => handleToolbarClick('stamp')}>
                     スタンプ
                 </button>
-                <button 
-                    className={`btn ${showLayoutControls ? 'btn-primary' : ''}`}
-                    onClick={() => handleToolbarClick('layout')}
-                >
-                    レイアウト
-                </button>
+                {/* Layoutボタンは削除 */}
             </div>
 
             {/* テキストコントロールパネル */}
@@ -1152,7 +1072,7 @@ return (
                 </div>
             )}
 
-            {/* 簡略化された描画範囲調整スライダー */}
+            {/* 描画範囲調整スライダー */}
             {selectedImage && (
                 <div>
                     <label>X座標:</label>
