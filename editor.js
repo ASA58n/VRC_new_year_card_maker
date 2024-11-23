@@ -572,6 +572,9 @@ const NewYearCardEditor = () => {
     // レイアウト関連の状態
     const [selectedLayout, setSelectedLayout] = React.useState(LAYOUT_PRESETS[0]);
     const [editorScale, setEditorScale] = React.useState(1);
+    const [cropRect, setCropRect] = React.useState(null);
+    const [imageWidth, setImageWidth] = React.useState(0);
+    const [imageHeight, setImageHeight] = React.useState(0);
 
     // エディタのサイズを計算するヘルパー関数
     const calculateEditorSize = React.useCallback(() => {
@@ -596,23 +599,28 @@ const NewYearCardEditor = () => {
 
     // エディタスタイルの計算
     const editorStyle = React.useMemo(() => {
-        const size = calculateEditorSize();
+        if (!cropRect) return {};
+        const scale = Math.min(800 / cropRect.width, 600 / cropRect.height);
         return {
-            width: `${size.width}px`,
-            height: `${size.height}px`,
+            width: `${cropRect.width * scale}px`,
+            height: `${cropRect.height * scale}px`,
             position: 'relative',
             overflow: 'hidden',
             margin: '0 auto',
             backgroundColor: '#f5f5f5',
             border: '2px dashed #ccc'
         };
-    }, [calculateEditorSize]);
+    }, [cropRect]);
 
     // 画像スタイルの計算
     const getImageStyle = () => ({
-        filter: `brightness(${adjustments.brightness}%) 
-                contrast(${adjustments.contrast}%) 
-                saturate(${adjustments.saturate}%)`
+        width: `${imageWidth}px`,
+        height: `${imageHeight}px`,
+        objectFit: 'contain',
+        marginLeft: `-${cropRect?.x || 0}px`,
+        marginTop: `-${cropRect?.y || 0}px`,
+        transform: `scale(${Math.min(800/imageWidth, 600/imageHeight)})`, // 画像全体を表示するスケーリング
+        transformOrigin: '0 0' // スケーリングの基準点を左上に設定
     });
 
     // ツールバーのトグル処理
@@ -635,7 +643,16 @@ const NewYearCardEditor = () => {
         const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => setSelectedImage(e.target.result);
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    setSelectedImage(e.target.result);
+                    setImageWidth(img.width);
+                    setImageHeight(img.height);
+                    setCropRect({ x: 0, y: 0, width: img.width, height: img.height });
+                };
+                img.src = e.target.result;
+            };
             reader.readAsDataURL(file);
         }
     };
@@ -831,45 +848,31 @@ const NewYearCardEditor = () => {
     // ダウンロード処理
     const handleDownload = React.useCallback(async () => {
         const editorElement = document.querySelector('.editor-main');
-        if (!editorElement) return;
+        if (!editorElement || !cropRect || !selectedImage) return;
 
         try {
-            // エディタのサイズを実際の出力サイズに設定 (変更点1: 直接スタイルを変更)
-            editorElement.style.width = `${selectedLayout.width}px`;
-            editorElement.style.height = `${selectedLayout.height}px`;
-            editorElement.style.transform = 'none'; // 既存のtransformを削除
-
-            // テキスト要素とスタンプ要素のスケーリングを削除 (変更点2: これらの要素のスタイル変更を削除)
-            // これらの要素は、エディタのサイズ変更に応じて既に適切にレンダリングされていると仮定します。
-
-            // html2canvasの設定 (変更点3: scale を 1 に変更)
-            const options = {
-                backgroundColor: null,
-                scale: 1, // 高解像度化は不要になりました。
-                useCORS: true,
-                allowTaint: true,
-                logging: false
+            const canvas = await html2canvas(editorElement, { backgroundColor: null, scale: 1 });
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            img.src = selectedImage;
+            img.onload = () => {
+                ctx.drawImage(img, cropRect.x, cropRect.y, cropRect.width, cropRect.height, 0, 0, canvas.width, canvas.height);
+                const link = document.createElement('a');
+                link.download = `年賀状_${new Date().getTime()}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
             };
-
-            // 画像の生成
-            const canvas = await html2canvas(editorElement, options);
-
-            // 画像のダウンロード
-            const link = document.createElement('a');
-            link.download = `年賀状_${new Date().getTime()}.png`;
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-
-            // 元のスタイルを復元
-            editorElement.style.width = ''; // デフォルトの幅にリセット
-            editorElement.style.height = ''; // デフォルトの高さをリセット
-            editorElement.style.transform = ''; // デフォルトのtransformにリセット
-
         } catch (error) {
             console.error('Download failed:', error);
-            alert('ダウンロードに失敗しました。\n画像の生成中にエラーが発生しました。');
+            alert('ダウンロードに失敗しました。');
         }
-    }, [selectedLayout]);
+    }, [selectedImage, cropRect]);
+
+
+    // 簡略化された描画範囲調整（スライダーによる調整）
+    const handleCropChange = (property, value) => {
+        setCropRect(prev => ({ ...prev, [property]: value }));
+    };
 
     // エラー処理用の関数
     const handleError = (error, message) => {
@@ -960,6 +963,11 @@ return (
                                     onDragEnd={() => {}}
                                     onResize={(size) => handleStampResize(null, size)}
                                 />
+                            )}
+                            {!selectedImage && (
+                                <div>
+                                    <input type="file" accept="image/*" onChange={handleImageUpload} />
+                                </div>
                             )}
                         </div>
                     </>
@@ -1144,17 +1152,23 @@ return (
                 </div>
             )}
 
+            {/* 簡略化された描画範囲調整スライダー */}
+            {selectedImage && (
+                <div>
+                    <label>X座標:</label>
+                    <input type="range" min="0" max={imageWidth} value={cropRect?.x || 0} onChange={e => handleCropChange('x', parseInt(e.target.value))} />
+                    <label>Y座標:</label>
+                    <input type="range" min="0" max={imageHeight} value={cropRect?.y || 0} onChange={e => handleCropChange('y', parseInt(e.target.value))} />
+                    <label>幅:</label>
+                    <input type="range" min="1" max={imageWidth} value={cropRect?.width || imageWidth} onChange={e => handleCropChange('width', parseInt(e.target.value))} />
+                    <label>高さ:</label>
+                    <input type="range" min="1" max={imageHeight} value={cropRect?.height || imageHeight} onChange={e => handleCropChange('height', parseInt(e.target.value))} />
+                </div>
+            )}
+
             {/* アクションボタン */}
-            <div className="action-buttons" style={{width: '100%', marginTop: '20px', display: 'flex', gap: '10px'}}>
-                {selectedImage && (
-                    <button 
-                        className="btn btn-primary" 
-                        onClick={handleDownload}
-                        style={{flex: 1}}
-                    >
-                        画像をダウンロード
-                    </button>
-                )}
+            <div className="action-buttons">
+                {selectedImage && <button className="btn btn-primary" onClick={handleDownload}>画像をダウンロード</button>}
             </div>
         </div>
     );
