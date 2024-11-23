@@ -635,14 +635,9 @@ const NewYearCardEditor = () => {
 
     const handleTextDrag = (index, position) => {
         const updatedElements = [...textElements];
-        // スケールを考慮した位置計算
-        const scaledPosition = {
-            x: position.x / editorScale,
-            y: position.y / editorScale
-        };
         updatedElements[index] = {
             ...updatedElements[index],
-            position: scaledPosition
+            position: position // スケーリング不要に修正
         };
         setTextElements(updatedElements);
     };
@@ -704,19 +699,12 @@ const NewYearCardEditor = () => {
 
     const handleStampDrag = (index, position) => {
         if (previewStamp) {
-            setPreviewStamp(prev => ({
-                ...prev,
-                position
-            }));
+            setPreviewStamp(prev => ({ ...prev, position }));
         } else if (selectedStampIndex !== null) {
             const updatedElements = [...stampElements];
-            const scaledPosition = {
-                x: position.x / editorScale,
-                y: position.y / editorScale
-            };
             updatedElements[selectedStampIndex] = {
                 ...updatedElements[selectedStampIndex],
-                position: scaledPosition
+                position: position // スケーリング不要に修正
             };
             setStampElements(updatedElements);
         }
