@@ -529,12 +529,15 @@ const LayoutSelector = React.memo(({ selectedLayout, onLayoutSelect }) => {
 
 // メインの NewYearCardEditor コンポーネント
 const NewYearCardEditor = () => {
-    // 状態管理
+    // 基本的な状態管理
     const [selectedImage, setSelectedImage] = React.useState(null);
     const [showTutorial, setShowTutorial] = React.useState(true);
     const [showAdjustments, setShowAdjustments] = React.useState(false);
     const [showTextControls, setShowTextControls] = React.useState(false);
     const [showStampControls, setShowStampControls] = React.useState(false);
+    const [showLayoutControls, setShowLayoutControls] = React.useState(false);
+
+    // 画像調整関連の状態
     const [adjustments, setAdjustments] = React.useState({
         brightness: 100,
         contrast: 100,
@@ -565,170 +568,11 @@ const NewYearCardEditor = () => {
     const [selectedStampIndex, setSelectedStampIndex] = React.useState(null);
     const [previewStamp, setPreviewStamp] = React.useState(null);
 
-    // 画像アップロード処理
-    const handleImageUpload = (event) => {
-        const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => setSelectedImage(e.target.result);
-            reader.readAsDataURL(file);
-        }
-    };
-
-    // 画像スタイル
-    const getImageStyle = () => ({
-        filter: `brightness(${adjustments.brightness}%) 
-                contrast(${adjustments.contrast}%) 
-                saturate(${adjustments.saturate}%)`
-    });
-
-    // テキスト関連の処理
-    const handleTextDrag = (index, position) => {
-        const updatedElements = [...textElements];
-        updatedElements[index] = {
-            ...updatedElements[index],
-            position
-        };
-        setTextElements(updatedElements);
-    };
-
-    const handleTextSelect = (index) => {
-        setSelectedTextIndex(index);
-        const element = textElements[index];
-        setCurrentText(element.text || '');
-        setCurrentFont(element.style.fontFamily);
-        setCurrentSize(parseInt(element.style.fontSize));
-        setCurrentColor(element.style.color);
-        setIsVertical(element.style.writingMode === 'vertical-rl');
-    };
-
-    const updateSelectedText = React.useCallback(() => {
-        if (selectedTextIndex === null || !textElements[selectedTextIndex]) return;
-        
-        const updatedElements = [...textElements];
-        updatedElements[selectedTextIndex] = {
-            ...updatedElements[selectedTextIndex],
-            text: currentText,
-            style: {
-                fontFamily: currentFont,
-                fontSize: `${currentSize}px`,
-                color: currentColor,
-                writingMode: isVertical ? 'vertical-rl' : 'horizontal-tb'
-            }
-        };
-        setTextElements(updatedElements);
-    }, [selectedTextIndex, currentText, currentFont, currentSize, currentColor, isVertical, textElements]);
-    
-    // useEffectの依存配列も更新
-    React.useEffect(() => {
-        updateSelectedText();
-    }, [updateSelectedText]);
-
-    // スタンプ関連の処理
-    const handlePreviewStamp = (src, size) => {
-        const newStamp = {
-            id: Date.now(),
-            src,
-            position: { x: 50, y: 50 },
-            size
-        };
-        setPreviewStamp(newStamp);
-        setSelectedStampIndex(null);
-    };
-
-    const handleConfirmStamp = () => {
-        if (previewStamp) {
-            setStampElements(prev => [...prev, previewStamp]);
-            setPreviewStamp(null);
-        } else if (selectedStampIndex !== null) {
-            setSelectedStampIndex(null);
-        }
-    };
-
-    const handleCancelStamp = () => {
-        setPreviewStamp(null);
-        setSelectedStampIndex(null);
-    };
-
-    const handleDeleteStamp = () => {
-        if (selectedStampIndex !== null) {
-            setStampElements(prev => prev.filter((_, i) => i !== selectedStampIndex));
-            setSelectedStampIndex(null);
-        }
-    };
-
-    const handleStampDrag = (index, position) => {
-        if (previewStamp) {
-            setPreviewStamp(prev => ({
-                ...prev,
-                position
-            }));
-        } else if (selectedStampIndex !== null) {
-            const updatedElements = [...stampElements];
-            updatedElements[selectedStampIndex] = {
-                ...updatedElements[selectedStampIndex],
-                position
-            };
-            setStampElements(updatedElements);
-        }
-    };
-
-    const handleStampResize = (index, size) => {
-        if (previewStamp) {
-            setPreviewStamp(prev => ({
-                ...prev,
-                size
-            }));
-        } else if (selectedStampIndex !== null) {
-            const updatedElements = [...stampElements];
-            updatedElements[selectedStampIndex] = {
-                ...updatedElements[selectedStampIndex],
-                size
-            };
-            setStampElements(updatedElements);
-        }
-    };
-
-    // ツールバーのトグル処理
-    const handleToolbarClick = (tool) => {
-        setShowAdjustments(tool === 'adjust');
-        setShowTextControls(tool === 'text');
-        setShowStampControls(tool === 'stamp');
-        setShowLayoutControls(tool === 'layout');
-    };
-    
-    // 新しいテキストを追加する関数
-    const handleAddText = () => {
-        const newElement = {
-            id: Date.now(),
-            text: '',
-            position: { x: 50, y: 50 },
-            style: {
-                fontFamily: currentFont,
-                fontSize: `${currentSize}px`,
-                color: currentColor,
-                writingMode: isVertical ? 'vertical-rl' : 'horizontal-tb'
-            }
-        };
-        setTextElements(prev => [...prev, newElement]);
-        // 新しい要素のインデックスを設定
-        const newIndex = textElements.length;
-        setSelectedTextIndex(newIndex);
-        setCurrentText('');  // 入力フィールドをクリア
-    };
-    
-    // 初期テキスト要素の選択
-    React.useEffect(() => {
-        if (textElements.length > 0) {
-            handleTextSelect(0);
-        }
-    }, []);
-
-    const [showLayoutControls, setShowLayoutControls] = React.useState(false);
+    // レイアウト関連の状態
     const [selectedLayout, setSelectedLayout] = React.useState(LAYOUT_PRESETS[0]);
     const [editorScale, setEditorScale] = React.useState(1);
 
-    // エディタのサイズを計算する関数
+    // エディタのサイズを計算するヘルパー関数
     const calculateEditorSize = React.useCallback(() => {
         const containerWidth = 800; // エディタコンテナの最大幅
         const containerHeight = 600; // エディタコンテナの最大高さ
@@ -748,8 +592,8 @@ const NewYearCardEditor = () => {
             height: targetHeight * scale
         };
     }, [selectedLayout]);
-    
-    // メインエディタ領域のスタイルを更新
+
+    // エディタスタイルの計算
     const editorStyle = React.useMemo(() => {
         const size = calculateEditorSize();
         return {
@@ -762,47 +606,322 @@ const NewYearCardEditor = () => {
             border: '2px dashed #ccc'
         };
     }, [calculateEditorSize]);
-    
+
+    // 画像スタイルの計算
+    const getImageStyle = () => ({
+        filter: `brightness(${adjustments.brightness}%) 
+                contrast(${adjustments.contrast}%) 
+                saturate(${adjustments.saturate}%)`
+    });
+
+    // ツールバーのトグル処理
+    const handleToolbarClick = (tool) => {
+        setShowAdjustments(tool === 'adjust');
+        setShowTextControls(tool === 'text');
+        setShowStampControls(tool === 'stamp');
+        setShowLayoutControls(tool === 'layout');
+    };
+
+    // 初期テキスト要素の選択
+    React.useEffect(() => {
+        if (textElements.length > 0) {
+            handleTextSelect(0);
+        }
+    }, []);
+
+    // 画像アップロード処理
+    const handleImageUpload = (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => setSelectedImage(e.target.result);
+            reader.readAsDataURL(file);
+        }
+    };
+
+    // テキスト関連のハンドラー
+    const handleTextSelect = (index) => {
+        setSelectedTextIndex(index);
+        const element = textElements[index];
+        setCurrentText(element.text || '');
+        setCurrentFont(element.style.fontFamily);
+        setCurrentSize(parseInt(element.style.fontSize));
+        setCurrentColor(element.style.color);
+        setIsVertical(element.style.writingMode === 'vertical-rl');
+        setSelectedStampIndex(null); // スタンプの選択を解除
+    };
+
+    const handleTextDrag = (index, position) => {
+        const updatedElements = [...textElements];
+        // スケールを考慮した位置計算
+        const scaledPosition = {
+            x: position.x / editorScale,
+            y: position.y / editorScale
+        };
+        updatedElements[index] = {
+            ...updatedElements[index],
+            position: scaledPosition
+        };
+        setTextElements(updatedElements);
+    };
+
+    const handleAddText = () => {
+        const newElement = {
+            id: Date.now(),
+            text: '',
+            position: { x: 50, y: 50 },
+            style: {
+                fontFamily: currentFont,
+                fontSize: `${currentSize}px`,
+                color: currentColor,
+                writingMode: isVertical ? 'vertical-rl' : 'horizontal-tb'
+            }
+        };
+        setTextElements(prev => [...prev, newElement]);
+        setSelectedTextIndex(textElements.length);
+        setCurrentText('');
+    };
+
+    const updateSelectedText = React.useCallback(() => {
+        if (selectedTextIndex === null || !textElements[selectedTextIndex]) return;
+        
+        const updatedElements = [...textElements];
+        updatedElements[selectedTextIndex] = {
+            ...updatedElements[selectedTextIndex],
+            text: currentText,
+            style: {
+                fontFamily: currentFont,
+                fontSize: `${currentSize}px`,
+                color: currentColor,
+                writingMode: isVertical ? 'vertical-rl' : 'horizontal-tb'
+            }
+        };
+        setTextElements(updatedElements);
+    }, [selectedTextIndex, currentText, currentFont, currentSize, currentColor, isVertical, textElements]);
+
+    // テキスト更新の監視
+    React.useEffect(() => {
+        updateSelectedText();
+    }, [updateSelectedText]);
+
+    // スタンプ関連のハンドラー
+    const handlePreviewStamp = (src, size) => {
+        const newStamp = {
+            id: Date.now(),
+            src,
+            position: { x: 50, y: 50 },
+            size: {
+                width: size.width * editorScale,
+                height: size.height * editorScale
+            }
+        };
+        setPreviewStamp(newStamp);
+        setSelectedStampIndex(null);
+        setSelectedTextIndex(null);
+    };
+
+    const handleStampDrag = (index, position) => {
+        if (previewStamp) {
+            setPreviewStamp(prev => ({
+                ...prev,
+                position
+            }));
+        } else if (selectedStampIndex !== null) {
+            const updatedElements = [...stampElements];
+            const scaledPosition = {
+                x: position.x / editorScale,
+                y: position.y / editorScale
+            };
+            updatedElements[selectedStampIndex] = {
+                ...updatedElements[selectedStampIndex],
+                position: scaledPosition
+            };
+            setStampElements(updatedElements);
+        }
+    };
+
+    const handleStampResize = (index, size) => {
+        if (previewStamp) {
+            setPreviewStamp(prev => ({
+                ...prev,
+                size: {
+                    width: size.width * editorScale,
+                    height: size.height * editorScale
+                }
+            }));
+        } else if (selectedStampIndex !== null) {
+            const updatedElements = [...stampElements];
+            const scaledSize = {
+                width: size.width * editorScale,
+                height: size.height * editorScale
+            };
+            updatedElements[selectedStampIndex] = {
+                ...updatedElements[selectedStampIndex],
+                size: scaledSize
+            };
+            setStampElements(updatedElements);
+        }
+    };
+
+    const handleConfirmStamp = () => {
+        if (previewStamp) {
+            setStampElements(prev => [...prev, {
+                ...previewStamp,
+                position: {
+                    x: previewStamp.position.x / editorScale,
+                    y: previewStamp.position.y / editorScale
+                },
+                size: {
+                    width: previewStamp.size.width / editorScale,
+                    height: previewStamp.size.height / editorScale
+                }
+            }]);
+            setPreviewStamp(null);
+        } else if (selectedStampIndex !== null) {
+            setSelectedStampIndex(null);
+        }
+    };
+
+    const handleCancelStamp = () => {
+        setPreviewStamp(null);
+        setSelectedStampIndex(null);
+    };
+
+    const handleDeleteStamp = () => {
+        if (selectedStampIndex !== null) {
+            setStampElements(prev => prev.filter((_, i) => i !== selectedStampIndex));
+            setSelectedStampIndex(null);
+        }
+    };
+
+    // レイアウトの変更処理
+    const handleLayoutChange = React.useCallback((newLayout) => {
+        setSelectedLayout(newLayout);
+        
+        // 既存の要素の位置とサイズを新しいレイアウトに合わせて調整
+        const scaleRatio = {
+            x: newLayout.width / selectedLayout.width,
+            y: newLayout.height / selectedLayout.height
+        };
+
+        // テキスト要素の位置を調整
+        setTextElements(prev => prev.map(element => ({
+            ...element,
+            position: {
+                x: element.position.x * scaleRatio.x,
+                y: element.position.y * scaleRatio.y
+            }
+        })));
+
+        // スタンプ要素の位置とサイズを調整
+        setStampElements(prev => prev.map(element => ({
+            ...element,
+            position: {
+                x: element.position.x * scaleRatio.x,
+                y: element.position.y * scaleRatio.y
+            },
+            size: {
+                width: element.size.width * scaleRatio.x,
+                height: element.size.height * scaleRatio.y
+            }
+        })));
+    }, [selectedLayout]);
+
     // ダウンロード処理
     const handleDownload = React.useCallback(async () => {
         const editorElement = document.querySelector('.editor-main');
         if (!editorElement) return;
-    
+
         try {
-            // html2canvasをインポート（CDNから読み込む必要があります）
-            const html2canvas = window.html2canvas;
-            if (!html2canvas) {
-                throw new Error('html2canvas is not loaded');
-            }
-    
-            // 元のスケールを保存
-            const originalTransform = editorElement.style.transform;
-            
-            // スケールを一時的に1に設定（フルサイズでレンダリング）
+            // 現在のスタイルを保存
+            const originalStyle = {
+                width: editorElement.style.width,
+                height: editorElement.style.height,
+                transform: editorElement.style.transform
+            };
+
+            // エディタのサイズを実際の出力サイズに設定
+            editorElement.style.width = `${selectedLayout.width}px`;
+            editorElement.style.height = `${selectedLayout.height}px`;
             editorElement.style.transform = 'none';
+
+            // スケール調整用の一時的なスタイルを適用
+            const elements = editorElement.getElementsByClassName('text-element');
+            const stamps = editorElement.getElementsByClassName('stamp-element');
             
-            const canvas = await html2canvas(editorElement, {
-                width: selectedLayout.width,
-                height: selectedLayout.height,
-                scale: 1,
-                backgroundColor: null
+            // テキスト要素のスケール調整
+            Array.from(elements).forEach(element => {
+                const originalTransform = element.style.transform;
+                const originalScale = 1 / editorScale;
+                element.style.transform = `scale(${originalScale})`;
             });
-    
-            // スケールを元に戻す
-            editorElement.style.transform = originalTransform;
-    
-            // Canvas を画像に変換
+
+            // スタンプ要素のスケール調整
+            Array.from(stamps).forEach(stamp => {
+                const originalTransform = stamp.style.transform;
+                const originalScale = 1 / editorScale;
+                stamp.style.transform = `scale(${originalScale})`;
+            });
+
+            // html2canvasの設定
+            const options = {
+                backgroundColor: null,
+                scale: 2, // 高解像度化のため2倍のスケールで出力
+                useCORS: true,
+                allowTaint: true,
+                logging: false
+            };
+
+            // 画像の生成
+            const canvas = await html2canvas(editorElement, options);
+
+            // 画像のダウンロード
             const link = document.createElement('a');
-            link.download = '年賀状.png';
+            link.download = `年賀状_${new Date().getTime()}.png`;
             link.href = canvas.toDataURL('image/png');
             link.click();
+
+            // スタイルを元に戻す
+            editorElement.style.width = originalStyle.width;
+            editorElement.style.height = originalStyle.height;
+            editorElement.style.transform = originalStyle.transform;
+
+            // 要素のスタイルを元に戻す
+            Array.from(elements).forEach(element => {
+                element.style.transform = '';
+            });
+            Array.from(stamps).forEach(stamp => {
+                stamp.style.transform = '';
+            });
+
         } catch (error) {
             console.error('Download failed:', error);
-            alert('ダウンロードに失敗しました。');
+            alert('ダウンロードに失敗しました。\n画像の生成中にエラーが発生しました。');
         }
-    }, [selectedLayout]);
-    
-    // レンダリング部分
+    }, [selectedLayout, editorScale]);
+
+    // エラー処理用の関数
+    const handleError = (error, message) => {
+        console.error(message, error);
+        alert(`エラーが発生しました。\n${message}`);
+    };
+
+    // 画面サイズ変更時の処理
+    React.useEffect(() => {
+        const handleResize = () => {
+            calculateEditorSize();
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [calculateEditorSize]);
+
+    // レイアウト変更時の処理
+    React.useEffect(() => {
+        calculateEditorSize();
+    }, [selectedLayout, calculateEditorSize]);
+
+        // レンダリング部分
 return (
         <div className="editor-container">
             {/* メインエディター領域 */}
