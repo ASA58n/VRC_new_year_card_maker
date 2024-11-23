@@ -661,30 +661,30 @@ const NewYearCardEditor = () => {
         updateSelectedText();
     }, [updateSelectedText]);
 
-    // スタンプ関連のハンドラー
+// スタンプ関連のハンドラー
     const handlePreviewStamp = (src, size) => {
         const newStamp = {
             id: Date.now(),
             src,
             position: { x: 50, y: 50 },
-            size: {
-                width: size.width * editorScale,
-                height: size.height * editorScale
-            }
+            size: size // editorScale を削除
         };
         setPreviewStamp(newStamp);
         setSelectedStampIndex(null);
         setSelectedTextIndex(null);
     };
 
-    const handleStampDrag = (index, position) => {
+    const handleStampResize = (index, size) => {
         if (previewStamp) {
-            setPreviewStamp(prev => ({ ...prev, position }));
+            setPreviewStamp(prev => ({
+                ...prev,
+                size: size // editorScale を削除
+            }));
         } else if (selectedStampIndex !== null) {
             const updatedElements = [...stampElements];
             updatedElements[selectedStampIndex] = {
                 ...updatedElements[selectedStampIndex],
-                position: position // スケーリング不要に修正
+                size: size // editorScale を削除
             };
             setStampElements(updatedElements);
         }
