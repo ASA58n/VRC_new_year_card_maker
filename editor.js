@@ -329,10 +329,11 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
 };
 
 // StampSelector コンポーネント
-const StampSelector = React.memo(({ onAddStamp }) => {
+// StampSelector コンポーネント
+const StampSelector = React.memo(({ onPreviewStamp, onConfirmStamp, onCancelStamp, isPreviewMode }) => {
     const [uploadedStamps, setUploadedStamps] = React.useState([]);
-    const [previewStamp, setPreviewStamp] = React.useState(null);
 
+    // 画像アップロード処理
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (file && file.type.startsWith('image/')) {
@@ -356,13 +357,12 @@ const StampSelector = React.memo(({ onAddStamp }) => {
         }
     };
 
-    const handlePreviewStamp = (stamp) => {
-        // 適切な初期サイズを計算（元のサイズの1/3）
+    // スタンプ選択処理
+    const handleSelectStamp = (stamp) => {
         const maxSize = 200;
         let width = stamp.originalSize.width / 3;
         let height = stamp.originalSize.height / 3;
         
-        // サイズが大きすぎる場合は調整
         if (width > maxSize || height > maxSize) {
             const aspect = width / height;
             if (width > height) {
@@ -374,23 +374,35 @@ const StampSelector = React.memo(({ onAddStamp }) => {
             }
         }
 
-        setPreviewStamp({
-            ...stamp,
-            size: { width, height }
-        });
+        onPreviewStamp(stamp.src, { width, height });
     };
 
-    const handleConfirm = () => {
-        if (previewStamp) {
-            onAddStamp(previewStamp.src, previewStamp.size);
-            setPreviewStamp(null);
-        }
-    };
+    // プレビューモード時のUI
+    if (isPreviewMode) {
+        return (
+            <div className="stamp-selector">
+                <h4>スタンプを配置</h4>
+                <p>画像上の好きな位置にドラッグして配置し、サイズを調整してください</p>
+                <div className="preview-actions">
+                    <button 
+                        className="btn btn-primary"
+                        onClick={onConfirmStamp}
+                        style={{marginRight: '10px'}}
+                    >
+                        確定
+                    </button>
+                    <button 
+                        className="btn"
+                        onClick={onCancelStamp}
+                    >
+                        キャンセル
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
-    const handleCancel = () => {
-        setPreviewStamp(null);
-    };
-
+    // 通常モードのUI
     return (
         <div className="stamp-selector">
             <div className="stamp-upload">
@@ -405,7 +417,7 @@ const StampSelector = React.memo(({ onAddStamp }) => {
                 </label>
             </div>
             
-            {uploadedStamps.length > 0 && !previewStamp && (
+            {uploadedStamps.length > 0 && (
                 <div className="uploaded-stamps">
                     <h4>アップロードした画像</h4>
                     <div className="stamp-grid">
@@ -413,7 +425,7 @@ const StampSelector = React.memo(({ onAddStamp }) => {
                             <div 
                                 key={stamp.id}
                                 className="stamp-item"
-                                onClick={() => handlePreviewStamp(stamp)}
+                                onClick={() => handleSelectStamp(stamp)}
                             >
                                 <img 
                                     src={stamp.src} 
@@ -422,27 +434,6 @@ const StampSelector = React.memo(({ onAddStamp }) => {
                                 />
                             </div>
                         ))}
-                    </div>
-                </div>
-            )}
-
-            {previewStamp && (
-                <div className="stamp-preview-container">
-                    <h4>スタンプを配置</h4>
-                    <p>画像上の好きな位置にドラッグして配置し、サイズを調整してください</p>
-                    <div className="preview-actions">
-                        <button 
-                            className="btn btn-primary"
-                            onClick={handleConfirm}
-                        >
-                            確定
-                        </button>
-                        <button 
-                            className="btn"
-                            onClick={handleCancel}
-                        >
-                            キャンセル
-                        </button>
                     </div>
                 </div>
             )}
@@ -486,6 +477,7 @@ const NewYearCardEditor = () => {
     // スタンプ関連の状態
     const [stampElements, setStampElements] = React.useState([]);
     const [selectedStampIndex, setSelectedStampIndex] = React.useState(null);
+    const [previewStamp, setPreviewStamp] = React.useState(null);
 
     // 画像アップロード処理
     const handleImageUpload = (event) => {
@@ -517,22 +509,69 @@ const NewYearCardEditor = () => {
         setSelectedTextIndex(null);
     };
 
-    const handleStampDrag = (index, position) => {
-        const updatedElements = [...stampElements];
-        updatedElements[index] = {
-            ...updatedElements[index],
-            position
-        };
-        setStampElements(updatedElements);
-    };
-
-    const handleStampResize = (index, size) => {
-        const updatedElements = [...stampElements];
-        updatedElements[index] = {
-            ...updatedElements[index],
+    // スタンプのプレビュー処理
+    const handlePreviewStamp = (src, size) => {
+        const newStamp = {
+            id: Date.now(),
+            src,
+            position: { x: 50, y: 50 },
             size
         };
-        setStampElements(updatedElements);
+        setPreviewStamp(newStamp);
+        setSelectedStampIndex(null);
+    };
+
+    // スタンプの確定処理
+    const handleConfirmStamp = () => {
+        if (previewStamp) {
+            setStampElements(prev => [...prev, previewStamp]);
+            setPreviewStamp(null);
+        }
+    };
+
+    // スタンプのキャンセル処理
+    const handleCancelStamp = () => {
+        setPreviewStamp(null);
+    };
+    
+    // スタンプのドラッグ処理
+    const handleStampDrag = (index, position) => {
+        if (previewStamp) {
+            setPreviewStamp(prev => ({
+                ...prev,
+                position
+            }));
+        } else {
+            const updatedElements = [...stampElements];
+            updatedElements[index] = {
+                ...updatedElements[index],
+                position
+            };
+            setStampElements(updatedElements);
+        }
+    };
+
+    // スタンプのリサイズ処理
+    const handleStampResize = (index, size) => {
+        if (previewStamp) {
+            setPreviewStamp(prev => ({
+                ...prev,
+                size
+            }));
+        } else {
+            const updatedElements = [...stampElements];
+            updatedElements[index] = {
+                ...updatedElements[index],
+                size
+            };
+            setStampElements(updatedElements);
+        }
+    };
+
+    // スタンプの削除処理
+    const handleDeleteStamp = (index) => {
+        setStampElements(prev => prev.filter((_, i) => i !== index));
+        setSelectedStampIndex(null);
     };
 
     // テキスト関連の処理
@@ -621,6 +660,7 @@ const NewYearCardEditor = () => {
                                     onDragEnd={() => {}}
                                 />
                             ))}
+                            {/* 配置済みスタンプ */}
                             {stampElements.map((element, index) => (
                                 <StampElement
                                     key={element.id}
@@ -638,6 +678,22 @@ const NewYearCardEditor = () => {
                                     onResize={(size) => handleStampResize(index, size)}
                                 />
                             ))}
+
+                            {/* プレビュー中のスタンプ */}
+                            {previewStamp && (
+                                <StampElement
+                                    key="preview"
+                                    src={previewStamp.src}
+                                    position={previewStamp.position}
+                                    size={previewStamp.size}
+                                    isSelected={true}
+                                    onSelect={() => {}}
+                                    onDragStart={() => {}}
+                                    onDrag={(pos) => handleStampDrag(null, pos)}
+                                    onDragEnd={() => {}}
+                                    onResize={(size) => handleStampResize(null, size)}
+                                />
+                            )}
                         </div>
                     </>
                 ) : (
@@ -754,14 +810,16 @@ const NewYearCardEditor = () => {
             {/* スタンプコントロールパネル */}
             {showStampControls && selectedImage && (
                 <div className="control-panel">
-                    <StampSelector onAddStamp={handleAddStamp} />
-                    {selectedStampIndex !== null && (
+                    <StampSelector 
+                        onPreviewStamp={handlePreviewStamp}
+                        onConfirmStamp={handleConfirmStamp}
+                        onCancelStamp={handleCancelStamp}
+                        isPreviewMode={!!previewStamp}
+                    />
+                    {selectedStampIndex !== null && !previewStamp && (
                         <button 
                             className="btn btn-danger"
-                            onClick={() => {
-                                setStampElements(prev => prev.filter((_, i) => i !== selectedStampIndex));
-                                setSelectedStampIndex(null);
-                            }}
+                            onClick={() => handleDeleteStamp(selectedStampIndex)}
                             style={{width: '100%', marginTop: '10px'}}
                         >
                             選択中のスタンプを削除
