@@ -540,6 +540,27 @@ const NewYearCardEditor = () => {
     const [imageWidth, setImageWidth] = React.useState(0);
     const [imageHeight, setImageHeight] = React.useState(0);
 
+    // エディタのサイズを計算するヘルパー関数
+    const calculateEditorSize = React.useCallback(() => {
+        const containerWidth = 800; // エディタコンテナの最大幅
+        const containerHeight = 600; // エディタコンテナの最大高さ
+        
+        let targetWidth = selectedLayout.width;
+        let targetHeight = selectedLayout.height;
+        
+        // コンテナに合わせてスケールを計算
+        const widthScale = containerWidth / targetWidth;
+        const heightScale = containerHeight / targetHeight;
+        const scale = Math.min(widthScale, heightScale);
+        
+        setEditorScale(scale);
+        
+        return {
+            width: targetWidth * scale,
+            height: targetHeight * scale
+        };
+    }, [selectedLayout]);
+    
     // エディタスタイルの計算
     const editorStyle = React.useMemo(() => {
         if (!cropRect) return {};
