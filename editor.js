@@ -1,4 +1,217 @@
-// StampElement コンポーネント - ドラッグ＆リサイズ可能なスタンプ要素
+// TextElement コンポーネント - ドラッグ可能なテキスト要素
+const TextElement = ({ text, style, position, isSelected, onSelect, onDragStart, onDrag, onDragEnd }) => {
+    const elementRef = React.useRef(null);
+    const [isDragging, setIsDragging] = React.useState(false);
+    const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
+
+    const handleMouseDown = (e) => {
+        setIsDragging(true);
+        const rect = elementRef.current.getBoundingClientRect();
+        setDragOffset({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        });
+        onDragStart();
+        onSelect();
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging) return;
+        
+        const parentRect = elementRef.current.parentElement.getBoundingClientRect();
+        const x = e.clientX - parentRect.left - dragOffset.x;
+        const y = e.clientY - parentRect.top - dragOffset.y;
+        
+        onDrag({ x, y });
+    };
+
+    const handleMouseUp = () => {
+        if (isDragging) {
+            setIsDragging(false);
+            onDragEnd();
+        }
+    };
+
+    React.useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging]);
+
+    return (
+        <div
+            ref={elementRef}
+            className={`text-element ${isSelected ? 'selected' : ''}`}
+            style={{
+                ...style,
+                left: `${position.x}px`,
+                top: `${position.y}px`,
+                cursor: isDragging ? 'grabbing' : 'grab'
+            }}
+            onMouseDown={handleMouseDown}
+        >
+            {text}
+        </div>
+    );
+};
+
+// RangeSlider コンポーネント - 画像調整用スライダー
+const RangeSlider = ({ label, value, onChange, min = 0, max = 200 }) => {
+    return (
+        <div className="adjustment-control">
+            <label>{label}</label>
+            <div className="slider-container">
+                <input
+                    type="range"
+                    className="range-slider"
+                    min={min}
+                    max={max}
+                    value={value}
+                    onChange={e => onChange(parseInt(e.target.value))}
+                />
+                <div className="value-display">{value}%</div>
+            </div>
+        </div>
+    );
+};
+
+// フォント設定
+const fonts = [
+    { 
+        name: '明朝体',
+        value: "'Noto Serif JP', serif",
+        sample: 'あけましておめでとうございます'
+    },
+    { 
+        name: 'ゴシック体',
+        value: "'Noto Sans JP', sans-serif",
+        sample: 'あけましておめでとうございます'
+    },
+    { 
+        name: '毛筆体',
+        value: "'Yuji Syuku', serif",
+        sample: '謹賀新年'
+    },
+    { 
+        name: '春の海明朝',
+        value: "'Kaisei HarunoUmi', serif",
+        sample: '迎春'
+    },
+    { 
+        name: '丸ゴシック',
+        value: "'Zen Maru Gothic', sans-serif",
+        sample: 'あけましておめでとうございます'
+    },
+    { 
+        name: 'クレナイド',
+        value: "'Zen Kurenaido', sans-serif",
+        sample: 'Happy New Year'
+    },
+    { 
+        name: 'モノマニアック',
+        value: "'Monomaniac One', sans-serif",
+        sample: '2024'
+    },
+    { 
+        name: 'ガムジャ',
+        value: "'Gamja Flower', cursive",
+        sample: '새해 복 많이 받으세요'
+    }
+];
+
+// FontSelector コンポーネント
+const FontSelector = React.memo(() => {
+    const [isExpanded, setIsExpanded] = React.useState(false);
+    
+    const categories = [
+        {
+            id: 'japanese',
+            name: '和文フォント',
+            fonts: fonts.filter(f => 
+                ['明朝体', 'ゴシック体', '毛筆体', '春の海明朝', '丸ゴシック', 'クレナイド']
+                .includes(f.name)
+            )
+        },
+        {
+            id: 'design',
+            name: 'デザインフォント',
+            fonts: fonts.filter(f => 
+                ['モノマニアック', 'ガムジャ']
+                .includes(f.name)
+            )
+        }
+    ];
+
+    // 現在選択されているフォントの情報を取得
+    const selectedFont = fonts.find(f => f.value === currentFont);
+
+    // フォント選択ハンドラー
+    const handleFontSelect = React.useCallback((fontValue) => {
+        setCurrentFont(fontValue);
+        setIsExpanded(false);
+    }, []);
+
+    return (
+        <div className="font-selector">
+            {/* 現在選択中のフォントプレビュー */}
+            <div className="font-preview">
+                <label>フォント</label>
+                <div 
+                    className="current-font-sample"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                >
+                    <span 
+                        className="sample-text"
+                        style={{ fontFamily: selectedFont.value }}
+                    >
+                        {selectedFont.sample}
+                    </span>
+                    <div className="preview-footer">
+                        <span className="font-name">{selectedFont.name}</span>
+                        <span className="expand-icon">
+                            {isExpanded ? '▼' : '▶'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {/* フォント選択パネル */}
+            {isExpanded && (
+                <div className="font-selection-panel">
+                    {categories.map(category => (
+                        <div key={category.id} className="font-category">
+                            <h4 className="category-title">{category.name}</h4>
+                            <div className="font-samples">
+                                {category.fonts.map(font => (
+                                    <div 
+                                        key={font.value}
+                                        className={`font-sample ${currentFont === font.value ? 'selected' : ''}`}
+                                        onClick={() => handleFontSelect(font.value)}
+                                    >
+                                        <span 
+                                            className="sample-text"
+                                            style={{ fontFamily: font.value }}
+                                        >
+                                            {font.sample}
+                                        </span>
+                                        <span className="font-name">{font.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+});
+
+// StampElement コンポーネント
 const StampElement = ({ src, style, position, size, isSelected, onSelect, onDragStart, onDrag, onDragEnd, onResize }) => {
     const elementRef = React.useRef(null);
     const [isDragging, setIsDragging] = React.useState(false);
@@ -9,9 +222,8 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
 
     // ドラッグ処理
     const handleMouseDown = (e) => {
-        if (e.target.classList.contains('resize-handle')) {
-            return;
-        }
+        if (e.target.classList.contains('resize-handle')) return;
+        
         setIsDragging(true);
         const rect = elementRef.current.getBoundingClientRect();
         setDragOffset({
@@ -116,7 +328,7 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
     );
 };
 
-// StampSelector コンポーネント - スタンプアップロード＆選択UI
+// StampSelector コンポーネント
 const StampSelector = React.memo(({ onAddStamp }) => {
     const [uploadedStamps, setUploadedStamps] = React.useState([]);
 
@@ -145,12 +357,24 @@ const StampSelector = React.memo(({ onAddStamp }) => {
     };
 
     const handleAddStamp = (stamp) => {
-        // 適切な初期サイズを計算（例：元のサイズの1/3）
-        const initialSize = {
-            width: stamp.originalSize.width / 3,
-            height: stamp.originalSize.height / 3
-        };
-        onAddStamp(stamp.src, initialSize);
+        // 適切な初期サイズを計算（元のサイズの1/3）
+        const maxSize = 200; // 最大サイズ
+        let width = stamp.originalSize.width / 3;
+        let height = stamp.originalSize.height / 3;
+        
+        // サイズが大きすぎる場合は調整
+        if (width > maxSize || height > maxSize) {
+            const aspect = width / height;
+            if (width > height) {
+                width = maxSize;
+                height = width / aspect;
+            } else {
+                height = maxSize;
+                width = height * aspect;
+            }
+        }
+
+        onAddStamp(stamp.src, { width, height });
     };
 
     return (
@@ -190,162 +414,6 @@ const StampSelector = React.memo(({ onAddStamp }) => {
     );
 });
 
-// スタイルの追加
-const styles = `
-.stamp-element {
-    position: absolute;
-    min-width: 30px;
-    min-height: 30px;
-}
-
-.stamp-element.selected {
-    outline: 2px solid #4a90e2;
-}
-
-.resize-handle {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    background: #4a90e2;
-    border: 1px solid white;
-    border-radius: 50%;
-    bottom: -5px;
-    right: -5px;
-    cursor: se-resize;
-}
-
-.stamp-selector {
-    margin-bottom: 15px;
-}
-
-.upload-button {
-    display: inline-block;
-    padding: 8px 16px;
-    background: #4a90e2;
-    color: white;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.upload-button:hover {
-    background: #357abd;
-}
-
-.uploaded-stamps {
-    margin-top: 15px;
-}
-
-.stamp-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    padding: 10px 0;
-}
-
-.stamp-item {
-    aspect-ratio: 1;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    padding: 5px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.stamp-item:hover {
-    background: #f5f5f5;
-    transform: scale(1.05);
-}
-
-.stamp-preview {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-}
-`;
-
-// TextElement コンポーネント - ドラッグ可能なテキスト要素
-const TextElement = ({ text, style, position, isSelected, onSelect, onDragStart, onDrag, onDragEnd }) => {
-    const elementRef = React.useRef(null);
-    const [isDragging, setIsDragging] = React.useState(false);
-    const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
-
-    const handleMouseDown = (e) => {
-        setIsDragging(true);
-        const rect = elementRef.current.getBoundingClientRect();
-        setDragOffset({
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top
-        });
-        onDragStart();
-        onSelect();
-    };
-
-    const handleMouseMove = (e) => {
-        if (!isDragging) return;
-        
-        const parentRect = elementRef.current.parentElement.getBoundingClientRect();
-        const x = e.clientX - parentRect.left - dragOffset.x;
-        const y = e.clientY - parentRect.top - dragOffset.y;
-        
-        onDrag({ x, y });
-    };
-
-    const handleMouseUp = () => {
-        if (isDragging) {
-            setIsDragging(false);
-            onDragEnd();
-        }
-    };
-
-    React.useEffect(() => {
-        if (isDragging) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
-        }
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [isDragging]);
-
-    return (
-        <div
-            ref={elementRef}
-            className={`text-element ${isSelected ? 'selected' : ''}`}
-            style={{
-                ...style,
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-                cursor: isDragging ? 'grabbing' : 'grab'
-            }}
-            onMouseDown={handleMouseDown}
-        >
-            {text}
-        </div>
-    );
-};
-
-// RangeSlider コンポーネント - 画像調整用スライダー
-const RangeSlider = ({ label, value, onChange, min = 0, max = 200 }) => {
-    return (
-        <div className="adjustment-control">
-            <label>{label}</label>
-            <div className="slider-container">
-                <input
-                    type="range"
-                    className="range-slider"
-                    min={min}
-                    max={max}
-                    value={value}
-                    onChange={e => onChange(parseInt(e.target.value))}
-                />
-                <div className="value-display">{value}%</div>
-            </div>
-        </div>
-    );
-};
-
 // メインの NewYearCardEditor コンポーネント
 const NewYearCardEditor = () => {
     // 状態管理
@@ -353,58 +421,12 @@ const NewYearCardEditor = () => {
     const [showTutorial, setShowTutorial] = React.useState(true);
     const [showAdjustments, setShowAdjustments] = React.useState(false);
     const [showTextControls, setShowTextControls] = React.useState(false);
+    const [showStampControls, setShowStampControls] = React.useState(false);
     const [adjustments, setAdjustments] = React.useState({
         brightness: 100,
         contrast: 100,
         saturate: 100
     });
-    const [stampElements, setStampElements] = React.useState([]);
-    const [selectedStampIndex, setSelectedStampIndex] = React.useState(null);
-    const [showStampControls, setShowStampControls] = React.useState(false);
-
-    // フォントオプション
-    const fonts = [
-        { 
-            name: '明朝体',
-            value: "'Noto Serif JP', serif",
-            sample: 'あけましておめでとうございます'
-        },
-        { 
-            name: 'ゴシック体',
-            value: "'Noto Sans JP', sans-serif",
-            sample: 'あけましておめでとうございます'
-        },
-        { 
-            name: '毛筆体',
-            value: "'Yuji Syuku', serif",
-            sample: '謹賀新年'
-        },
-        { 
-            name: '春の海明朝',
-            value: "'Kaisei HarunoUmi', serif",
-            sample: '迎春'
-        },
-        { 
-            name: '丸ゴシック',
-            value: "'Zen Maru Gothic', sans-serif",
-            sample: 'あけましておめでとうございます'
-        },
-        { 
-            name: 'クレナイド',
-            value: "'Zen Kurenaido', sans-serif",
-            sample: 'Happy New Year'
-        },
-        { 
-            name: 'モノマニアック',
-            value: "'Monomaniac One', sans-serif",
-            sample: '2024'
-        },
-        { 
-            name: 'ガムジャ',
-            value: "'Gamja Flower', cursive",
-            sample: '새해 복 많이 받으세요'
-        }
-    ];
 
     // テキスト関連の状態
     const [textElements, setTextElements] = React.useState([{
@@ -425,94 +447,11 @@ const NewYearCardEditor = () => {
     const [currentColor, setCurrentColor] = React.useState('#000000');
     const [isVertical, setIsVertical] = React.useState(false);
 
-// FontSelector コンポーネント
-    const FontSelector = React.memo(() => {
-        const [isExpanded, setIsExpanded] = React.useState(false);
-        
-        const categories = [
-            {
-                id: 'japanese',
-                name: '和文フォント',
-                fonts: fonts.filter(f => 
-                    ['明朝体', 'ゴシック体', '毛筆体', '春の海明朝', '丸ゴシック', 'クレナイド']
-                    .includes(f.name)
-                )
-            },
-            {
-                id: 'design',
-                name: 'デザインフォント',
-                fonts: fonts.filter(f => 
-                    ['モノマニアック', 'ガムジャ']
-                    .includes(f.name)
-                )
-            }
-        ];
+    // スタンプ関連の状態
+    const [stampElements, setStampElements] = React.useState([]);
+    const [selectedStampIndex, setSelectedStampIndex] = React.useState(null);
 
-        // 現在選択されているフォントの情報を取得
-        const selectedFont = fonts.find(f => f.value === currentFont);
-
-        // フォント選択ハンドラー
-        const handleFontSelect = React.useCallback((fontValue) => {
-            setCurrentFont(fontValue);
-            setIsExpanded(false);
-        }, []);
-
-        return (
-            <div className="font-selector">
-                {/* 現在選択中のフォントプレビュー（クリックで展開/折りたたみ） */}
-                <div className="font-preview">
-                    <label>フォント</label>
-                    <div 
-                        className="current-font-sample"
-                        onClick={() => setIsExpanded(!isExpanded)}
-                    >
-                        <span 
-                            className="sample-text"
-                            style={{ fontFamily: selectedFont.value }}
-                        >
-                            {selectedFont.sample}
-                        </span>
-                        <div className="preview-footer">
-                            <span className="font-name">{selectedFont.name}</span>
-                            <span className="expand-icon">
-                                {isExpanded ? '▼' : '▶'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* フォント選択パネル */}
-                {isExpanded && (
-                    <div className="font-selection-panel">
-                        {categories.map(category => (
-                            <div key={category.id} className="font-category">
-                                <h4 className="category-title">{category.name}</h4>
-                                <div className="font-samples">
-                                    {category.fonts.map(font => (
-                                        <div 
-                                            key={font.value}
-                                            className={`font-sample ${currentFont === font.value ? 'selected' : ''}`}
-                                            onClick={() => handleFontSelect(font.value)}
-                                        >
-                                            <span 
-                                                className="sample-text"
-                                                style={{ fontFamily: font.value }}
-                                            >
-                                                {font.sample}
-                                            </span>
-                                            <span className="font-name">{font.name}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
-        );
-    });
-
-    // イメージ処理関連の関数
+    // 画像アップロード処理
     const handleImageUpload = (event) => {
         const file = event.target.files[0];
         if (file) {
@@ -522,30 +461,45 @@ const NewYearCardEditor = () => {
         }
     };
 
+    // 画像スタイル
     const getImageStyle = () => ({
         filter: `brightness(${adjustments.brightness}%) 
                 contrast(${adjustments.contrast}%) 
                 saturate(${adjustments.saturate}%)`
     });
 
-    // テキスト処理関連の関数
-    const handleAddText = () => {
-        const newElement = {
+    // スタンプ関連の処理
+    const handleAddStamp = (src, size) => {
+        const newStamp = {
             id: Date.now(),
-            text: '',
+            src,
             position: { x: 50, y: 50 },
-            style: {
-                fontFamily: currentFont,
-                fontSize: `${currentSize}px`,
-                color: currentColor,
-                writingMode: isVertical ? 'vertical-rl' : 'horizontal-tb'
-            }
+            size
         };
-
-        setTextElements([...textElements, newElement]);
-        setSelectedTextIndex(textElements.length);
+        setStampElements(prev => [...prev, newStamp]);
+        setSelectedStampIndex(stampElements.length);
+        setSelectedTextIndex(null);
     };
 
+    const handleStampDrag = (index, position) => {
+        const updatedElements = [...stampElements];
+        updatedElements[index] = {
+            ...updatedElements[index],
+            position
+        };
+        setStampElements(updatedElements);
+    };
+
+    const handleStampResize = (index, size) => {
+        const updatedElements = [...stampElements];
+        updatedElements[index] = {
+            ...updatedElements[index],
+            size
+        };
+        setStampElements(updatedElements);
+    };
+
+    // テキスト関連の処理
     const handleTextDrag = (index, position) => {
         const updatedElements = [...textElements];
         updatedElements[index] = {
@@ -582,58 +536,26 @@ const NewYearCardEditor = () => {
         setTextElements(updatedElements);
     };
 
-    // コンポーネントマウント時に最初のテキスト要素を選択
-    React.useEffect(() => {
-        if (textElements.length > 0) {
-            handleTextSelect(0);
-        }
-    }, []);
-
-    // 選択されたテキストの更新を監視
-    React.useEffect(() => {
-        updateSelectedText();
-    }, [currentText, currentFont, currentSize, currentColor, isVertical]);
-
-    // スタンプ追加処理
-    const handleAddStamp = (src, initialSize) => {
-        const newStamp = {
-            id: Date.now(),
-            src,
-            position: { x: 50, y: 50 },
-            size: initialSize
-        };
-        setStampElements(prev => [...prev, newStamp]);
-        setSelectedStampIndex(stampElements.length);
-    };
-
-    // スタンプドラッグ処理
-    const handleStampDrag = (index, position) => {
-        const updatedElements = [...stampElements];
-        updatedElements[index] = {
-            ...updatedElements[index],
-            position
-        };
-        setStampElements(updatedElements);
-    };
-
-    // スタンプリサイズ処理
-    const handleStampResize = (index, size) => {
-        const updatedElements = [...stampElements];
-        updatedElements[index] = {
-            ...updatedElements[index],
-            size
-        };
-        setStampElements(updatedElements);
-    };
-
-    // ツールバーのトグル処理を修正
+    // ツールバーのトグル処理
     const handleToolbarClick = (tool) => {
         setShowAdjustments(tool === 'adjust');
         setShowTextControls(tool === 'text');
         setShowStampControls(tool === 'stamp');
     };
 
-// UI レンダリング
+    // 初期テキスト要素の選択
+    React.useEffect(() => {
+        if (textElements.length > 0) {
+            handleTextSelect(0);
+        }
+    }, []);
+
+    // テキスト更新の監視
+    React.useEffect(() => {
+        updateSelectedText();
+    }, [currentText, currentFont, currentSize, currentColor, isVertical]);
+    
+    // UI レンダリング
     return (
         <div className="editor-container">
             {/* メインエディター領域 */}
@@ -647,7 +569,6 @@ const NewYearCardEditor = () => {
                             style={getImageStyle()}
                         />
                         <div className="text-layer">
-                            {/* 既存のテキスト要素 */}
                             {textElements.map((element, index) => (
                                 <TextElement
                                     key={element.id}
@@ -655,13 +576,15 @@ const NewYearCardEditor = () => {
                                     style={element.style}
                                     position={element.position}
                                     isSelected={index === selectedTextIndex}
-                                    onSelect={() => handleTextSelect(index)}
-                                    onDragStart={() => setSelectedStampIndex(null)}
+                                    onSelect={() => {
+                                        handleTextSelect(index);
+                                        setSelectedStampIndex(null);
+                                    }}
+                                    onDragStart={() => {}}
                                     onDrag={(pos) => handleTextDrag(index, pos)}
                                     onDragEnd={() => {}}
                                 />
                             ))}
-                            {/* スタンプ要素 */}
                             {stampElements.map((element, index) => (
                                 <StampElement
                                     key={element.id}
@@ -673,7 +596,7 @@ const NewYearCardEditor = () => {
                                         setSelectedStampIndex(index);
                                         setSelectedTextIndex(null);
                                     }}
-                                    onDragStart={() => setSelectedTextIndex(null)}
+                                    onDragStart={() => {}}
                                     onDrag={(pos) => handleStampDrag(index, pos)}
                                     onDragEnd={() => {}}
                                     onResize={(size) => handleStampResize(index, size)}
@@ -716,25 +639,6 @@ const NewYearCardEditor = () => {
                 </button>
                 <button className="btn">レイアウト</button>
             </div>
-
-            {/* スタンプコントロールパネル */}
-            {showStampControls && selectedImage && (
-                <div className="control-panel">
-                    <StampSelector onAddStamp={handleAddStamp} />
-                    {selectedStampIndex !== null && (
-                        <button 
-                            className="btn btn-danger"
-                            onClick={() => {
-                                setStampElements(prev => prev.filter((_, i) => i !== selectedStampIndex));
-                                setSelectedStampIndex(null);
-                            }}
-                            style={{width: '100%', marginTop: '10px'}}
-                        >
-                            選択中のスタンプを削除
-                        </button>
-                    )}
-                </div>
-            )}
 
             {/* テキストコントロールパネル */}
             {showTextControls && selectedImage && (
@@ -789,11 +693,44 @@ const NewYearCardEditor = () => {
 
                     <button 
                         className="btn btn-primary"
-                        onClick={handleAddText}
+                        onClick={() => {
+                            const newElement = {
+                                id: Date.now(),
+                                text: '',
+                                position: { x: 50, y: 50 },
+                                style: {
+                                    fontFamily: currentFont,
+                                    fontSize: `${currentSize}px`,
+                                    color: currentColor,
+                                    writingMode: isVertical ? 'vertical-rl' : 'horizontal-tb'
+                                }
+                            };
+                            setTextElements([...textElements, newElement]);
+                            setSelectedTextIndex(textElements.length);
+                        }}
                         style={{width: '100%', marginTop: '10px'}}
                     >
                         新しいテキストを追加
                     </button>
+                </div>
+            )}
+
+            {/* スタンプコントロールパネル */}
+            {showStampControls && selectedImage && (
+                <div className="control-panel">
+                    <StampSelector onAddStamp={handleAddStamp} />
+                    {selectedStampIndex !== null && (
+                        <button 
+                            className="btn btn-danger"
+                            onClick={() => {
+                                setStampElements(prev => prev.filter((_, i) => i !== selectedStampIndex));
+                                setSelectedStampIndex(null);
+                            }}
+                            style={{width: '100%', marginTop: '10px'}}
+                        >
+                            選択中のスタンプを削除
+                        </button>
+                    )}
                 </div>
             )}
 
