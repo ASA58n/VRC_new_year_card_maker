@@ -527,8 +527,8 @@ const NewYearCardEditor = () => {
         setIsVertical(element.style.writingMode === 'vertical-rl');
     };
 
-    const updateSelectedText = () => {
-        if (selectedTextIndex === null) return;
+    const updateSelectedText = React.useCallback(() => {
+        if (selectedTextIndex === null || !textElements[selectedTextIndex]) return;
         
         const updatedElements = [...textElements];
         updatedElements[selectedTextIndex] = {
@@ -542,7 +542,12 @@ const NewYearCardEditor = () => {
             }
         };
         setTextElements(updatedElements);
-    };
+    }, [selectedTextIndex, currentText, currentFont, currentSize, currentColor, isVertical, textElements]);
+    
+    // useEffectの依存配列も更新
+    React.useEffect(() => {
+        updateSelectedText();
+    }, [updateSelectedText]);
 
     // スタンプ関連の処理
     const handlePreviewStamp = (src, size) => {
@@ -615,7 +620,27 @@ const NewYearCardEditor = () => {
         setShowTextControls(tool === 'text');
         setShowStampControls(tool === 'stamp');
     };
-
+    
+    // NewYearCardEditor コンポーネント内の新しいテキストを追加する関数
+    const handleAddText = () => {
+        const newElement = {
+            id: Date.now(),
+            text: '',
+            position: { x: 50, y: 50 },
+            style: {
+                fontFamily: currentFont,
+                fontSize: `${currentSize}px`,
+                color: currentColor,
+                writingMode: isVertical ? 'vertical-rl' : 'horizontal-tb'
+            }
+        };
+        setTextElements(prev => [...prev, newElement]);
+        // 新しい要素のインデックスを設定
+        const newIndex = textElements.length;
+        setSelectedTextIndex(newIndex);
+        setCurrentText('');  // 入力フィールドをクリア
+    };
+    
     // 初期テキスト要素の選択
     React.useEffect(() => {
         if (textElements.length > 0) {
@@ -623,10 +648,6 @@ const NewYearCardEditor = () => {
         }
     }, []);
 
-    // テキスト更新の監視
-    React.useEffect(() => {
-        updateSelectedText();
-    }, [currentText, currentFont, currentSize, currentColor, isVertical]);
     // レンダリング部分
     return (
         <div className="editor-container">
@@ -783,23 +804,10 @@ const NewYearCardEditor = () => {
                         </div>
                     </div>
 
+                    // テキストコントロールパネルのボタン部分
                     <button 
                         className="btn btn-primary"
-                        onClick={() => {
-                            const newElement = {
-                                id: Date.now(),
-                                text: '',
-                                position: { x: 50, y: 50 },
-                                style: {
-                                    fontFamily: currentFont,
-                                    fontSize: `${currentSize}px`,
-                                    color: currentColor,
-                                    writingMode: isVertical ? 'vertical-rl' : 'horizontal-tb'
-                                }
-                            };
-                            setTextElements([...textElements, newElement]);
-                            setSelectedTextIndex(textElements.length);
-                        }}
+                        onClick={handleAddText}
                         style={{width: '100%', marginTop: '10px'}}
                     >
                         新しいテキストを追加
