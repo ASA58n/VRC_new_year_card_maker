@@ -452,7 +452,7 @@ const StampSelector = React.memo(({
     );
 });
 
-// LayoutSelector コンポーネントの修正版
+// LayoutSelector コンポーネントの改良版
 const LayoutSelector = React.memo(({ 
     imageSize,
     cropArea,
@@ -464,123 +464,135 @@ const LayoutSelector = React.memo(({
     const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 });
     const [dragType, setDragType] = React.useState(null);
     const cropRef = React.useRef(null);
+    const [aspectRatio, setAspectRatio] = React.useState('free');
 
-    // ドラッグ開始時の処理
-    const handleMouseDown = (e) => {
-        if (!cropRef.current) return;
-        
-        const rect = cropRef.current.getBoundingClientRect();
-        const x = (e.clientX - rect.left) * (imageSize.width / rect.width);
-        const y = (e.clientY - rect.top) * (imageSize.height / rect.height);
-        
-        // クリックした位置に基づいてドラッグタイプを決定
-        const edgeSize = 20; // より大きな判定範囲
-        const isNearLeft = Math.abs(x - cropArea.x) < edgeSize;
-        const isNearRight = Math.abs(x - (cropArea.x + cropArea.width)) < edgeSize;
-        const isNearTop = Math.abs(y - cropArea.y) < edgeSize;
-        const isNearBottom = Math.abs(y - (cropArea.y + cropArea.height)) < edgeSize;
+    const aspectRatios = {
+        free: null,
+        square: 1,
+        landscape: 16/9,
+        portrait: 9/16
+    };
 
-        if (isNearLeft && isNearTop) setDragType('nw');
-        else if (isNearRight && isNearTop) setDragType('ne');
-        else if (isNearLeft && isNearBottom) setDragType('sw');
-        else if (isNearRight && isNearBottom) setDragType('se');
-        else if (isNearLeft) setDragType('w');
-        else if (isNearRight) setDragType('e');
-        else if (isNearTop) setDragType('n');
-        else if (isNearBottom) setDragType('s');
-        else if (x > cropArea.x && x < cropArea.x + cropArea.width &&
-                y > cropArea.y && y < cropArea.y + cropArea.height) {
-            setDragType('move');
+    // アスペクト比に応じて切り抜き範囲を調整
+    const adjustByAspectRatio = (crop, ratio = null) => {
+        if (!ratio) return crop;
+
+        const newCrop = { ...crop };
+        const currentRatio = crop.width / crop.height;
+
+        if (currentRatio > ratio) {
+            newCrop.width = crop.height * ratio;
+        } else {
+            newCrop.height = crop.width / ratio;
         }
 
+        return newCrop;
+    };
+
+    // ドラッグ開始
+    const handleMouseDown = (e) => {
+        const rect = cropRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // 既存の選択範囲内でクリックされた場合
+        if (isPointInCropArea(x, y)) {
+            handleResizeOrMove(e, x, y);
+        } else {
+            // 新しい選択範囲の作成開始
+            startNewSelection(e, x, y);
+        }
+    };
+
+    // 選択範囲内のクリック判定
+    const isPointInCropArea = (x, y) => {
+        const scaleX = imageSize.width / cropRef.current.offsetWidth;
+        const scaleY = imageSize.height / cropRef.current.offsetHeight;
+        
+        const scaledX = x * scaleX;
+        const scaledY = y * scaleY;
+
+        return (
+            scaledX >= cropArea.x &&
+            scaledX <= cropArea.x + cropArea.width &&
+            scaledY >= cropArea.y &&
+            scaledY <= cropArea.y + cropArea.height
+        );
+    };
+
+    // 新規選択の開始
+    const startNewSelection = (e, startX, startY) => {
+        const rect = cropRef.current.getBoundingClientRect();
+        const scaleX = imageSize.width / rect.width;
+        const scaleY = imageSize.height / rect.height;
+
+        const newX = (startX) * scaleX;
+        const newY = (startY) * scaleY;
+
+        setDragType('newSelection');
         setIsDragging(true);
-        setDragStart({ x, y });
+        setDragStart({ x: newX, y: newY });
+
+        onCropChange({
+            x: newX,
+            y: newY,
+            width: 0,
+            height: 0
+        });
+
         e.preventDefault();
     };
 
-    // ドラッグ中の処理
+    // マウス移動処理
     const handleMouseMove = (e) => {
         if (!isDragging || !cropRef.current) return;
 
         const rect = cropRef.current.getBoundingClientRect();
-        const x = (e.clientX - rect.left) * (imageSize.width / rect.width);
-        const y = (e.clientY - rect.top) * (imageSize.height / rect.height);
-        const dx = x - dragStart.x;
-        const dy = y - dragStart.y;
+        const scaleX = imageSize.width / rect.width;
+        const scaleY = imageSize.height / rect.height;
+        
+        const currentX = (e.clientX - rect.left) * scaleX;
+        const currentY = (e.clientY - rect.top) * scaleY;
 
-        let newCrop = { ...cropArea };
-        const minSize = 100;
+        let newCrop;
 
-        switch (dragType) {
-            case 'move':
-                newCrop.x = Math.max(0, Math.min(imageSize.width - cropArea.width, cropArea.x + dx));
-                newCrop.y = Math.max(0, Math.min(imageSize.height - cropArea.height, cropArea.y + dy));
-                break;
-            case 'nw':
-                newCrop = {
-                    x: Math.max(0, Math.min(cropArea.x + cropArea.width - minSize, cropArea.x + dx)),
-                    y: Math.max(0, Math.min(cropArea.y + cropArea.height - minSize, cropArea.y + dy)),
-                    width: Math.max(minSize, cropArea.width - dx),
-                    height: Math.max(minSize, cropArea.height - dy)
-                };
-                break;
-            case 'ne':
-                newCrop = {
-                    x: cropArea.x,
-                    y: Math.max(0, Math.min(cropArea.y + cropArea.height - minSize, cropArea.y + dy)),
-                    width: Math.max(minSize, Math.min(imageSize.width - cropArea.x, cropArea.width + dx)),
-                    height: Math.max(minSize, cropArea.height - dy)
-                };
-                break;
-            case 'sw':
-                newCrop = {
-                    x: Math.max(0, Math.min(cropArea.x + cropArea.width - minSize, cropArea.x + dx)),
-                    y: cropArea.y,
-                    width: Math.max(minSize, cropArea.width - dx),
-                    height: Math.max(minSize, Math.min(imageSize.height - cropArea.y, cropArea.height + dy))
-                };
-                break;
-            case 'se':
-                newCrop = {
-                    x: cropArea.x,
-                    y: cropArea.y,
-                    width: Math.max(minSize, Math.min(imageSize.width - cropArea.x, cropArea.width + dx)),
-                    height: Math.max(minSize, Math.min(imageSize.height - cropArea.y, cropArea.height + dy))
-                };
-                break;
-            case 'n':
-                newCrop = {
-                    ...cropArea,
-                    y: Math.max(0, Math.min(cropArea.y + cropArea.height - minSize, cropArea.y + dy)),
-                    height: Math.max(minSize, cropArea.height - dy)
-                };
-                break;
-            case 's':
-                newCrop = {
-                    ...cropArea,
-                    height: Math.max(minSize, Math.min(imageSize.height - cropArea.y, cropArea.height + dy))
-                };
-                break;
-            case 'w':
-                newCrop = {
-                    ...cropArea,
-                    x: Math.max(0, Math.min(cropArea.x + cropArea.width - minSize, cropArea.x + dx)),
-                    width: Math.max(minSize, cropArea.width - dx)
-                };
-                break;
-            case 'e':
-                newCrop = {
-                    ...cropArea,
-                    width: Math.max(minSize, Math.min(imageSize.width - cropArea.x, cropArea.width + dx))
-                };
-                break;
+        if (dragType === 'newSelection') {
+            // 新規選択の場合
+            const width = Math.abs(currentX - dragStart.x);
+            const height = Math.abs(currentY - dragStart.y);
+            const x = Math.min(currentX, dragStart.x);
+            const y = Math.min(currentY, dragStart.y);
+
+            newCrop = {
+                x: Math.max(0, Math.min(x, imageSize.width)),
+                y: Math.max(0, Math.min(y, imageSize.height)),
+                width: Math.min(width, imageSize.width - x),
+                height: Math.min(height, imageSize.height - y)
+            };
+
+            if (aspectRatio !== 'free') {
+                newCrop = adjustByAspectRatio(newCrop, aspectRatios[aspectRatio]);
+            }
+        } else if (dragType === 'move') {
+            // 既存の選択範囲の移動
+            const dx = currentX - dragStart.x;
+            const dy = currentY - dragStart.y;
+            
+            newCrop = {
+                x: Math.max(0, Math.min(cropArea.x + dx, imageSize.width - cropArea.width)),
+                y: Math.max(0, Math.min(cropArea.y + dy, imageSize.height - cropArea.height)),
+                width: cropArea.width,
+                height: cropArea.height
+            };
         }
 
-        onCropChange(newCrop);
-        setDragStart({ x, y });
+        if (newCrop) {
+            onCropChange(newCrop);
+            setDragStart({ x: currentX, y: currentY });
+        }
     };
 
-    // ドラッグ終了時の処理
+    // マウスアップ処理
     const handleMouseUp = () => {
         setIsDragging(false);
         setDragType(null);
@@ -598,80 +610,82 @@ const LayoutSelector = React.memo(({
     }, [isDragging, dragType, cropArea]);
 
     return (
-        <div className="layout-selector">
-            <div 
-                ref={cropRef}
-                className="crop-area"
-                onMouseDown={handleMouseDown}
-                style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    overflow: 'hidden'
-                }}
-            >
-                {/* 暗くする背景 */}
-                <div
-                    style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        background: 'rgba(0, 0, 0, 0.5)'
-                    }}
-                />
-                {/* 切り抜き範囲 */}
-                <div
-                    className="crop-rectangle"
-                    style={{
-                        position: 'absolute',
-                        left: `${(cropArea.x / imageSize.width) * 100}%`,
-                        top: `${(cropArea.y / imageSize.height) * 100}%`,
-                        width: `${(cropArea.width / imageSize.width) * 100}%`,
-                        height: `${(cropArea.height / imageSize.height) * 100}%`,
-                        border: '2px solid #4a90e2',
-                        backgroundColor: 'transparent',
-                        cursor: isDragging ? 
-                            (dragType === 'move' ? 'grabbing' : 'crosshair') : 
-                            'grab',
-                        boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)'
-                    }}
-                >
-                    {/* リサイズハンドル */}
-                    {['nw', 'ne', 'sw', 'se', 'n', 's', 'w', 'e'].map(handle => (
-                        <div
-                            key={handle}
-                            className={`resize-handle ${handle}`}
-                            style={{
-                                position: 'absolute',
-                                width: '10px',
-                                height: '10px',
-                                background: '#4a90e2',
-                                border: '1px solid white',
-                                borderRadius: '50%',
-                                ...(handle.includes('n') && { top: '-5px' }),
-                                ...(handle.includes('s') && { bottom: '-5px' }),
-                                ...(handle.includes('w') && { left: '-5px' }),
-                                ...(handle.includes('e') && { right: '-5px' }),
-                                ...(handle === 'n' || handle === 's' && { left: 'calc(50% - 5px)' }),
-                                ...(handle === 'w' || handle === 'e' && { top: 'calc(50% - 5px)' }),
-                                cursor: `${handle}-resize`,
-                                zIndex: 2
-                            }}
-                        />
-                    ))}
+        <div className="layout-selector-container">
+            <div className="layout-controls">
+                <div className="aspect-ratio-controls">
+                    <div className="aspect-ratio-buttons">
+                        <button
+                            className={`btn ${aspectRatio === 'free' ? 'btn-primary' : ''}`}
+                            onClick={() => setAspectRatio('free')}
+                        >
+                            フリー
+                        </button>
+                        <button
+                            className={`btn ${aspectRatio === 'square' ? 'btn-primary' : ''}`}
+                            onClick={() => setAspectRatio('square')}
+                        >
+                            正方形
+                        </button>
+                        <button
+                            className={`btn ${aspectRatio === 'landscape' ? 'btn-primary' : ''}`}
+                            onClick={() => setAspectRatio('landscape')}
+                        >
+                            16:9
+                        </button>
+                        <button
+                            className={`btn ${aspectRatio === 'portrait' ? 'btn-primary' : ''}`}
+                            onClick={() => setAspectRatio('portrait')}
+                        >
+                            9:16
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            <div className="layout-image-container">
+                <div 
+                    ref={cropRef}
+                    className="layout-image-area"
+                    onMouseDown={handleMouseDown}
+                >
+                    <img 
+                        src={selectedImage} 
+                        alt="レイアウト編集"
+                        style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'contain'
+                        }}
+                    />
+                    <div className="crop-overlay" />
+                    {cropArea && (
+                        <div
+                            className="crop-rectangle"
+                            style={{
+                                position: 'absolute',
+                                left: `${(cropArea.x / imageSize.width) * 100}%`,
+                                top: `${(cropArea.y / imageSize.height) * 100}%`,
+                                width: `${(cropArea.width / imageSize.width) * 100}%`,
+                                height: `${(cropArea.height / imageSize.height) * 100}%`,
+                                border: '2px solid white',
+                                boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)',
+                                cursor: isDragging ? 'grabbing' : 'grab'
+                            }}
+                        >
+                            <div className="crop-grid">
+                                <div className="grid-line vertical" style={{left: '33.33%'}} />
+                                <div className="grid-line vertical" style={{left: '66.66%'}} />
+                                <div className="grid-line horizontal" style={{top: '33.33%'}} />
+                                <div className="grid-line horizontal" style={{top: '66.66%'}} />
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+
             <div className="layout-actions">
-                <button className="btn btn-primary" onClick={onConfirm}>
-                    確定
-                </button>
-                <button className="btn" onClick={onCancel}>
-                    キャンセル
-                </button>
+                <button className="btn" onClick={onCancel}>キャンセル</button>
+                <button className="btn btn-primary" onClick={onConfirm}>確定</button>
             </div>
         </div>
     );
