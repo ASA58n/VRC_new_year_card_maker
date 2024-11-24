@@ -452,7 +452,7 @@ const StampSelector = React.memo(({
     );
 });
 
-// LayoutSelector コンポーネント - 画像の切り抜き範囲を選択するUI
+// LayoutSelector コンポーネントの修正版
 const LayoutSelector = React.memo(({ 
     imageSize,
     cropArea,
@@ -467,12 +467,14 @@ const LayoutSelector = React.memo(({
 
     // ドラッグ開始時の処理
     const handleMouseDown = (e) => {
+        if (!cropRef.current) return;
+        
         const rect = cropRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const x = (e.clientX - rect.left) * (imageSize.width / rect.width);
+        const y = (e.clientY - rect.top) * (imageSize.height / rect.height);
         
         // クリックした位置に基づいてドラッグタイプを決定
-        const edgeSize = 10;
+        const edgeSize = 20; // より大きな判定範囲
         const isNearLeft = Math.abs(x - cropArea.x) < edgeSize;
         const isNearRight = Math.abs(x - (cropArea.x + cropArea.width)) < edgeSize;
         const isNearTop = Math.abs(y - cropArea.y) < edgeSize;
@@ -493,21 +495,22 @@ const LayoutSelector = React.memo(({
 
         setIsDragging(true);
         setDragStart({ x, y });
+        e.preventDefault();
     };
 
     // ドラッグ中の処理
     const handleMouseMove = (e) => {
-        if (!isDragging) return;
+        if (!isDragging || !cropRef.current) return;
 
         const rect = cropRef.current.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+        const x = (e.clientX - rect.left) * (imageSize.width / rect.width);
+        const y = (e.clientY - rect.top) * (imageSize.height / rect.height);
         const dx = x - dragStart.x;
         const dy = y - dragStart.y;
 
         let newCrop = { ...cropArea };
+        const minSize = 100;
 
-        // ドラッグタイプに応じて切り抜き範囲を更新
         switch (dragType) {
             case 'move':
                 newCrop.x = Math.max(0, Math.min(imageSize.width - cropArea.width, cropArea.x + dx));
@@ -515,21 +518,62 @@ const LayoutSelector = React.memo(({
                 break;
             case 'nw':
                 newCrop = {
-                    x: Math.max(0, Math.min(cropArea.x + cropArea.width - 100, cropArea.x + dx)),
-                    y: Math.max(0, Math.min(cropArea.y + cropArea.height - 100, cropArea.y + dy)),
-                    width: cropArea.width - dx,
-                    height: cropArea.height - dy
+                    x: Math.max(0, Math.min(cropArea.x + cropArea.width - minSize, cropArea.x + dx)),
+                    y: Math.max(0, Math.min(cropArea.y + cropArea.height - minSize, cropArea.y + dy)),
+                    width: Math.max(minSize, cropArea.width - dx),
+                    height: Math.max(minSize, cropArea.height - dy)
                 };
                 break;
             case 'ne':
                 newCrop = {
                     x: cropArea.x,
-                    y: Math.max(0, Math.min(cropArea.y + cropArea.height - 100, cropArea.y + dy)),
-                    width: Math.max(100, Math.min(imageSize.width - cropArea.x, cropArea.width + dx)),
-                    height: cropArea.height - dy
+                    y: Math.max(0, Math.min(cropArea.y + cropArea.height - minSize, cropArea.y + dy)),
+                    width: Math.max(minSize, Math.min(imageSize.width - cropArea.x, cropArea.width + dx)),
+                    height: Math.max(minSize, cropArea.height - dy)
                 };
                 break;
-            // 他のケースも同様に実装...
+            case 'sw':
+                newCrop = {
+                    x: Math.max(0, Math.min(cropArea.x + cropArea.width - minSize, cropArea.x + dx)),
+                    y: cropArea.y,
+                    width: Math.max(minSize, cropArea.width - dx),
+                    height: Math.max(minSize, Math.min(imageSize.height - cropArea.y, cropArea.height + dy))
+                };
+                break;
+            case 'se':
+                newCrop = {
+                    x: cropArea.x,
+                    y: cropArea.y,
+                    width: Math.max(minSize, Math.min(imageSize.width - cropArea.x, cropArea.width + dx)),
+                    height: Math.max(minSize, Math.min(imageSize.height - cropArea.y, cropArea.height + dy))
+                };
+                break;
+            case 'n':
+                newCrop = {
+                    ...cropArea,
+                    y: Math.max(0, Math.min(cropArea.y + cropArea.height - minSize, cropArea.y + dy)),
+                    height: Math.max(minSize, cropArea.height - dy)
+                };
+                break;
+            case 's':
+                newCrop = {
+                    ...cropArea,
+                    height: Math.max(minSize, Math.min(imageSize.height - cropArea.y, cropArea.height + dy))
+                };
+                break;
+            case 'w':
+                newCrop = {
+                    ...cropArea,
+                    x: Math.max(0, Math.min(cropArea.x + cropArea.width - minSize, cropArea.x + dx)),
+                    width: Math.max(minSize, cropArea.width - dx)
+                };
+                break;
+            case 'e':
+                newCrop = {
+                    ...cropArea,
+                    width: Math.max(minSize, Math.min(imageSize.width - cropArea.x, cropArea.width + dx))
+                };
+                break;
         }
 
         onCropChange(newCrop);
@@ -551,7 +595,7 @@ const LayoutSelector = React.memo(({
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
         };
-    }, [isDragging]);
+    }, [isDragging, dragType, cropArea]);
 
     return (
         <div className="layout-selector">
@@ -564,29 +608,43 @@ const LayoutSelector = React.memo(({
                     top: 0,
                     left: 0,
                     width: '100%',
-                    height: '100%'
+                    height: '100%',
+                    overflow: 'hidden'
                 }}
             >
+                {/* 暗くする背景 */}
+                <div
+                    style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        background: 'rgba(0, 0, 0, 0.5)'
+                    }}
+                />
+                {/* 切り抜き範囲 */}
                 <div
                     className="crop-rectangle"
                     style={{
                         position: 'absolute',
-                        left: `${cropArea.x}px`,
-                        top: `${cropArea.y}px`,
-                        width: `${cropArea.width}px`,
-                        height: `${cropArea.height}px`,
+                        left: `${(cropArea.x / imageSize.width) * 100}%`,
+                        top: `${(cropArea.y / imageSize.height) * 100}%`,
+                        width: `${(cropArea.width / imageSize.width) * 100}%`,
+                        height: `${(cropArea.height / imageSize.height) * 100}%`,
                         border: '2px solid #4a90e2',
-                        backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                        backgroundColor: 'transparent',
                         cursor: isDragging ? 
                             (dragType === 'move' ? 'grabbing' : 'crosshair') : 
-                            'grab'
+                            'grab',
+                        boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.5)'
                     }}
                 >
                     {/* リサイズハンドル */}
-                    {['nw', 'ne', 'sw', 'se'].map(corner => (
+                    {['nw', 'ne', 'sw', 'se', 'n', 's', 'w', 'e'].map(handle => (
                         <div
-                            key={corner}
-                            className={`resize-handle ${corner}`}
+                            key={handle}
+                            className={`resize-handle ${handle}`}
                             style={{
                                 position: 'absolute',
                                 width: '10px',
@@ -594,9 +652,14 @@ const LayoutSelector = React.memo(({
                                 background: '#4a90e2',
                                 border: '1px solid white',
                                 borderRadius: '50%',
-                                ...(corner.includes('n') ? { top: '-5px' } : { bottom: '-5px' }),
-                                ...(corner.includes('w') ? { left: '-5px' } : { right: '-5px' }),
-                                cursor: `${corner}-resize`
+                                ...(handle.includes('n') && { top: '-5px' }),
+                                ...(handle.includes('s') && { bottom: '-5px' }),
+                                ...(handle.includes('w') && { left: '-5px' }),
+                                ...(handle.includes('e') && { right: '-5px' }),
+                                ...(handle === 'n' || handle === 's' && { left: 'calc(50% - 5px)' }),
+                                ...(handle === 'w' || handle === 'e' && { top: 'calc(50% - 5px)' }),
+                                cursor: `${handle}-resize`,
+                                zIndex: 2
                             }}
                         />
                     ))}
@@ -613,7 +676,6 @@ const LayoutSelector = React.memo(({
         </div>
     );
 });
-
 // メインの NewYearCardEditor コンポーネント
 const NewYearCardEditor = () => {
     // 状態管理
@@ -939,7 +1001,12 @@ const NewYearCardEditor = () => {
                 >
                     スタンプ
                 </button>
-                <button className="btn">レイアウト</button>
+                <button 
+                    className={`btn ${showLayoutControls ? 'btn-primary' : ''}`}
+                    onClick={() => handleToolbarClick('layout')}
+                >
+                    レイアウト
+                </button>
             </div>
 
             {/* テキストコントロールパネル */}
