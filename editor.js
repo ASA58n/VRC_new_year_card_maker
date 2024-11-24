@@ -729,18 +729,22 @@ const NewYearCardEditor = () => {
         }
     };
 
-    // 画像がロードされたときのサイズ取得
+    // 画像がロードされたときのサイズ取得処理を修正
     const handleImageLoad = (e) => {
+        const width = e.target.naturalWidth;
+        const height = e.target.naturalHeight;
+        
         setImageSize({
-            width: e.target.naturalWidth,
-            height: e.target.naturalHeight
+            width,
+            height
         });
+        
         // 初期の切り抜き範囲を設定
         setCropArea({
             x: 0,
             y: 0,
-            width: e.target.naturalWidth,
-            height: e.target.naturalHeight
+            width,
+            height
         });
     };
     
@@ -872,15 +876,30 @@ const NewYearCardEditor = () => {
         }
     };
 
-    // レイアウトの確定処理
+    // レイアウトの確定処理を修正
     const handleLayoutConfirm = () => {
+        if (cropArea) {
+            // cropArea の値を保存
+            console.log('Selected crop area:', cropArea);
+            setShowLayoutControls(false);
+        }
+    };
+    
+    // レイアウトのキャンセル処理を修正
+    const handleLayoutCancel = () => {
+        // 初期の切り抜き範囲に戻す
+        if (imageSize) {
+            setCropArea({
+                x: 0,
+                y: 0,
+                width: imageSize.width,
+                height: imageSize.height
+            });
+        }
         setShowLayoutControls(false);
     };
     
-    // レイアウトのキャンセル処理
-    const handleLayoutCancel = () => {
-        setShowLayoutControls(false);
-    };
+
     
     // ツールバーの処理を更新
     const handleToolbarClick = (tool) => {
@@ -981,33 +1000,33 @@ const NewYearCardEditor = () => {
                 )}
             </div>
 
-            {/* ツールバー */}
-            <div className="toolbar">
-                <button 
-                    className={`btn ${showAdjustments ? 'btn-primary' : ''}`}
-                    onClick={() => handleToolbarClick('adjust')}
-                >
-                    画像調整
-                </button>
-                <button 
-                    className={`btn ${showTextControls ? 'btn-primary' : ''}`}
-                    onClick={() => handleToolbarClick('text')}
-                >
-                    文字入力
-                </button>
-                <button 
-                    className={`btn ${showStampControls ? 'btn-primary' : ''}`}
-                    onClick={() => handleToolbarClick('stamp')}
-                >
-                    スタンプ
-                </button>
-                <button 
-                    className={`btn ${showLayoutControls ? 'btn-primary' : ''}`}
-                    onClick={() => handleToolbarClick('layout')}
-                >
-                    レイアウト
-                </button>
-            </div>
+        // ツールバー
+        <div className="toolbar">
+            <button 
+                className={`btn ${showAdjustments ? 'btn-primary' : ''}`}
+                onClick={() => handleToolbarClick('adjust')}
+            >
+                画像調整
+            </button>
+            <button 
+                className={`btn ${showTextControls ? 'btn-primary' : ''}`}
+                onClick={() => handleToolbarClick('text')}
+            >
+                文字入力
+            </button>
+            <button 
+                className={`btn ${showStampControls ? 'btn-primary' : ''}`}
+                onClick={() => handleToolbarClick('stamp')}
+            >
+                スタンプ
+            </button>
+            <button 
+                className={`btn ${showLayoutControls ? 'btn-primary' : ''}`}
+                onClick={() => handleToolbarClick('layout')}
+            >
+                レイアウト
+            </button>
+        </div>
 
             {/* テキストコントロールパネル */}
             {showTextControls && selectedImage && (
@@ -1121,17 +1140,21 @@ const NewYearCardEditor = () => {
             )}
 
             {/* レイアウトコントロールパネル */}
-            {showLayoutControls && selectedImage && imageSize && (
+            {showLayoutControls && selectedImage && imageSize && cropArea && (
                 <div className="control-panel">
                     <h3>レイアウト設定</h3>
                     <p>切り抜く範囲を選択してください</p>
-                    <LayoutSelector
-                        imageSize={imageSize}
-                        cropArea={cropArea}
-                        onCropChange={setCropArea}
-                        onConfirm={handleLayoutConfirm}
-                        onCancel={handleLayoutCancel}
-                    />
+                    <div className="layout-preview-container">
+                        <div className="layout-preview-content">
+                            <LayoutSelector
+                                imageSize={imageSize}
+                                cropArea={cropArea}
+                                onCropChange={setCropArea}
+                                onConfirm={handleLayoutConfirm}
+                                onCancel={handleLayoutCancel}
+                            />
+                        </div>
+                    </div>
                 </div>
             )}
 
