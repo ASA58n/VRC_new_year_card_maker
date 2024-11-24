@@ -1200,5 +1200,7 @@ const NewYearCardEditor = () => {
 };
 
 // アプリケーションのレンダリング
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<NewYearCardEditor />);
+window.onload = function() {
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(NewYearCardEditor));
+};
