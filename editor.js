@@ -691,6 +691,7 @@ const LayoutSelector = React.memo(({
     );
 });
 // メインの NewYearCardEditor コンポーネント
+// メインの NewYearCardEditor コンポーネント
 const NewYearCardEditor = () => {
     // 状態管理
     const [selectedImage, setSelectedImage] = React.useState(null);
@@ -698,25 +699,21 @@ const NewYearCardEditor = () => {
     const [showAdjustments, setShowAdjustments] = React.useState(false);
     const [showTextControls, setShowTextControls] = React.useState(false);
     const [showStampControls, setShowStampControls] = React.useState(false);
+    const [showLayoutControls, setShowLayoutControls] = React.useState(false);
+    const [imageSize, setImageSize] = React.useState(null);
+    const [cropArea, setCropArea] = React.useState(null);
     const [adjustments, setAdjustments] = React.useState({
         brightness: 100,
         contrast: 100,
         saturate: 100
     });
 
+    // エディタのメインコンテナref
+    const editorRef = React.useRef(null);
+
     // テキスト関連の状態
-    const [textElements, setTextElements] = React.useState([{
-        id: Date.now(),
-        text: '',
-        position: { x: 50, y: 50 },
-        style: {
-            fontFamily: "'Noto Serif JP', serif",
-            fontSize: '24px',
-            color: '#000000',
-            writingMode: 'horizontal-tb'
-        }
-    }]);
-    const [selectedTextIndex, setSelectedTextIndex] = React.useState(0);
+    const [textElements, setTextElements] = React.useState([]);
+    const [selectedTextIndex, setSelectedTextIndex] = React.useState(null);
     const [currentText, setCurrentText] = React.useState('');
     const [currentFont, setCurrentFont] = React.useState("'Noto Serif JP', serif");
     const [currentSize, setCurrentSize] = React.useState(24);
@@ -728,32 +725,30 @@ const NewYearCardEditor = () => {
     const [selectedStampIndex, setSelectedStampIndex] = React.useState(null);
     const [previewStamp, setPreviewStamp] = React.useState(null);
 
-    // レイアウト
-    const [showLayoutControls, setShowLayoutControls] = React.useState(false);
-    const [cropArea, setCropArea] = React.useState(null);
-    const [imageSize, setImageSize] = React.useState(null);
-    
     // 画像アップロード処理
     const handleImageUpload = (event) => {
         const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = (e) => setSelectedImage(e.target.result);
+            reader.onload = (e) => {
+                setSelectedImage(e.target.result);
+                setShowAdjustments(false);
+                setShowTextControls(false);
+                setShowStampControls(false);
+                setShowLayoutControls(false);
+            };
             reader.readAsDataURL(file);
         }
     };
 
-    // 画像がロードされたときのサイズ取得処理を修正
+    // 画像ロード時の処理
     const handleImageLoad = (e) => {
         const width = e.target.naturalWidth;
         const height = e.target.naturalHeight;
         
-        setImageSize({
-            width,
-            height
-        });
+        setImageSize({ width, height });
         
-        // 初期の切り抜き範囲を設定
+        // 初期の切り抜き範囲を画像全体に設定
         setCropArea({
             x: 0,
             y: 0,
@@ -761,13 +756,21 @@ const NewYearCardEditor = () => {
             height
         });
     };
-    
-    // 画像スタイル
-    const getImageStyle = () => ({
-        filter: `brightness(${adjustments.brightness}%) 
-                contrast(${adjustments.contrast}%) 
-                saturate(${adjustments.saturate}%)`
-    });
+
+    // ツールバーの処理
+    const handleToolbarClick = (tool) => {
+        setShowAdjustments(tool === 'adjust');
+        setShowTextControls(tool === 'text');
+        setShowStampControls(tool === 'stamp');
+        setShowLayoutControls(tool === 'layout');
+
+        // 選択状態のリセット
+        if (tool !== 'text') setSelectedTextIndex(null);
+        if (tool !== 'stamp') {
+            setSelectedStampIndex(null);
+            setPreviewStamp(null);
+        }
+    };
 
     // テキスト関連の処理
     const handleAddText = () => {
@@ -783,12 +786,10 @@ const NewYearCardEditor = () => {
             }
         };
         setTextElements(prev => [...prev, newElement]);
-        // 新しい要素のインデックスを設定
-        const newIndex = textElements.length;
-        setSelectedTextIndex(newIndex);
-        setCurrentText('');  // 入力フィールドをクリア
+        setSelectedTextIndex(textElements.length);
+        setCurrentText('');
     };
-    
+
     const handleTextDrag = (index, position) => {
         const updatedElements = [...textElements];
         updatedElements[index] = {
@@ -806,6 +807,7 @@ const NewYearCardEditor = () => {
         setCurrentSize(parseInt(element.style.fontSize));
         setCurrentColor(element.style.color);
         setIsVertical(element.style.writingMode === 'vertical-rl');
+        setShowTextControls(true);
     };
 
     const updateSelectedText = () => {
@@ -890,18 +892,12 @@ const NewYearCardEditor = () => {
         }
     };
 
-    // レイアウトの確定処理を修正
+    // レイアウト関連の処理
     const handleLayoutConfirm = () => {
-        if (cropArea) {
-            // cropArea の値を保存
-            console.log('Selected crop area:', cropArea);
-            setShowLayoutControls(false);
-        }
+        setShowLayoutControls(false);
     };
-    
-    // レイアウトのキャンセル処理を修正
+
     const handleLayoutCancel = () => {
-        // 初期の切り抜き範囲に戻す
         if (imageSize) {
             setCropArea({
                 x: 0,
@@ -912,213 +908,150 @@ const NewYearCardEditor = () => {
         }
         setShowLayoutControls(false);
     };
-    
 
-    
-    // ツールバーの処理を更新
-    const handleToolbarClick = (tool) => {
-        setShowAdjustments(tool === 'adjust');
-        setShowTextControls(tool === 'text');
-        setShowStampControls(tool === 'stamp');
-        setShowLayoutControls(tool === 'layout');
-    };
+    // 画像スタイルの取得
+    const getImageStyle = () => ({
+        filter: `brightness(${adjustments.brightness}%) 
+                contrast(${adjustments.contrast}%) 
+                saturate(${adjustments.saturate}%)`
+    });
 
-    // 初期テキスト要素の選択
-    React.useEffect(() => {
-        if (textElements.length > 0) {
-            handleTextSelect(0);
-        }
-    }, []);
-
-    // テキスト更新の監視
+    // エフェクト
     React.useEffect(() => {
         updateSelectedText();
     }, [currentText, currentFont, currentSize, currentColor, isVertical]);
-    // レンダリング部分
+
+    // メインのレンダリング
     return (
-        <div className="editor-container">
+        <div className="editor-container" ref={editorRef}>
             {/* メインエディター領域 */}
-            <div className="editor-main">
+            <div className={`editor-main ${showLayoutControls ? 'layout-mode' : ''}`}>
                 {selectedImage ? (
-                    <>
-                        <img 
-                            src={selectedImage} 
-                            alt="プレビュー" 
-                            className="preview-image"
-                            style={getImageStyle()}
-                            onLoad={handleImageLoad}
-                        />
-                        <div className="text-layer">
-                            {/* テキスト要素 */}
-                            {textElements.map((element, index) => (
-                                <TextElement
-                                    key={element.id}
-                                    text={element.text}
-                                    style={element.style}
-                                    position={element.position}
-                                    isSelected={index === selectedTextIndex}
-                                    onSelect={() => {
-                                        handleTextSelect(index);
-                                        setSelectedStampIndex(null);
-                                    }}
-                                    onDragStart={() => {}}
-                                    onDrag={(pos) => handleTextDrag(index, pos)}
-                                    onDragEnd={() => {}}
-                                />
-                            ))}
-                            {/* スタンプ要素 */}
-                            {stampElements.map((element, index) => (
-                                <StampElement
-                                    key={element.id}
-                                    src={element.src}
-                                    position={element.position}
-                                    size={element.size}
-                                    isSelected={index === selectedStampIndex}
-                                    onSelect={() => {
-                                        setSelectedStampIndex(index);
-                                        setSelectedTextIndex(null);
-                                    }}
-                                    onDragStart={() => {}}
-                                    onDrag={(pos) => handleStampDrag(index, pos)}
-                                    onDragEnd={() => {}}
-                                    onResize={(size) => handleStampResize(index, size)}
-                                />
-                            ))}
-                            {/* プレビュースタンプ */}
-                            {previewStamp && (
-                                <StampElement
-                                    key="preview"
-                                    src={previewStamp.src}
-                                    position={previewStamp.position}
-                                    size={previewStamp.size}
-                                    isSelected={true}
-                                    onSelect={() => {}}
-                                    onDragStart={() => {}}
-                                    onDrag={(pos) => handleStampDrag(null, pos)}
-                                    onDragEnd={() => {}}
-                                    onResize={(size) => handleStampResize(null, size)}
-                                />
-                            )}
+                    <div className="editor-content">
+                        {/* メイン画像 */}
+                        <div className="image-container">
+                            <img 
+                                src={selectedImage} 
+                                alt="プレビュー" 
+                                className="preview-image"
+                                style={getImageStyle()}
+                                onLoad={handleImageLoad}
+                            />
                         </div>
-                    </>
+
+                        {/* レイアウトモード */}
+                        {showLayoutControls && imageSize && (
+                            <div className="layout-overlay">
+                                <LayoutSelector
+                                    imageSize={imageSize}
+                                    cropArea={cropArea}
+                                    onCropChange={setCropArea}
+                                    onConfirm={handleLayoutConfirm}
+                                    onCancel={handleLayoutCancel}
+                                    selectedImage={selectedImage}
+                                />
+                            </div>
+                        )}
+
+                        {/* テキストとスタンプのレイヤー（レイアウトモード時は非表示） */}
+                        {!showLayoutControls && (
+                            <div className="text-layer">
+                                {/* テキスト要素 */}
+                                {textElements.map((element, index) => (
+                                    <TextElement
+                                        key={element.id}
+                                        text={element.text}
+                                        style={element.style}
+                                        position={element.position}
+                                        isSelected={index === selectedTextIndex}
+                                        onSelect={() => handleTextSelect(index)}
+                                        onDragStart={() => {}}
+                                        onDrag={(pos) => handleTextDrag(index, pos)}
+                                        onDragEnd={() => {}}
+                                    />
+                                ))}
+
+                                {/* スタンプ要素 */}
+                                {stampElements.map((element, index) => (
+                                    <StampElement
+                                        key={element.id}
+                                        src={element.src}
+                                        position={element.position}
+                                        size={element.size}
+                                        isSelected={index === selectedStampIndex}
+                                        onSelect={() => {
+                                            setSelectedStampIndex(index);
+                                            setSelectedTextIndex(null);
+                                        }}
+                                        onDragStart={() => {}}
+                                        onDrag={(pos) => handleStampDrag(index, pos)}
+                                        onDragEnd={() => {}}
+                                        onResize={(size) => handleStampResize(index, size)}
+                                    />
+                                ))}
+
+                                {/* プレビュースタンプ */}
+                                {previewStamp && (
+                                    <StampElement
+                                        key="preview"
+                                        src={previewStamp.src}
+                                        position={previewStamp.position}
+                                        size={previewStamp.size}
+                                        isSelected={true}
+                                        onSelect={() => {}}
+                                        onDragStart={() => {}}
+                                        onDrag={(pos) => handleStampDrag(null, pos)}
+                                        onDragEnd={() => {}}
+                                        onResize={(size) => handleStampResize(null, size)}
+                                    />
+                                )}
+                            </div>
+                        )}
+                    </div>
                 ) : (
-                    <div style={{textAlign: 'center'}}>
+                    <div className="upload-prompt">
                         <p>画像をアップロードしてください</p>
                         <input
                             type="file"
                             accept="image/*"
                             onChange={handleImageUpload}
-                            style={{marginTop: '10px'}}
+                            className="file-input"
                         />
                     </div>
                 )}
             </div>
 
-        // ツールバー
-        <div className="toolbar">
-            <button 
-                className={`btn ${showAdjustments ? 'btn-primary' : ''}`}
-                onClick={() => handleToolbarClick('adjust')}
-            >
-                画像調整
-            </button>
-            <button 
-                className={`btn ${showTextControls ? 'btn-primary' : ''}`}
-                onClick={() => handleToolbarClick('text')}
-            >
-                文字入力
-            </button>
-            <button 
-                className={`btn ${showStampControls ? 'btn-primary' : ''}`}
-                onClick={() => handleToolbarClick('stamp')}
-            >
-                スタンプ
-            </button>
-            <button 
-                className={`btn ${showLayoutControls ? 'btn-primary' : ''}`}
-                onClick={() => handleToolbarClick('layout')}
-            >
-                レイアウト
-            </button>
-        </div>
-
-            {/* テキストコントロールパネル */}
-            {showTextControls && selectedImage && (
-                <div className="control-panel">
-                    <div className="writing-mode-toggle">
-                        <button 
-                            className={!isVertical ? 'active' : ''}
-                            onClick={() => setIsVertical(false)}
-                        >
-                            横書き
-                        </button>
-                        <button 
-                            className={isVertical ? 'active' : ''}
-                            onClick={() => setIsVertical(true)}
-                        >
-                            縦書き
-                        </button>
-                    </div>
-
-                    <FontSelector 
-                        selectedFont={currentFont}
-                        onFontSelect={setCurrentFont}
-                    />
-
-                    <input
-                        type="text"
-                        className="text-input"
-                        value={currentText}
-                        onChange={(e) => setCurrentText(e.target.value)}
-                        placeholder={`テキスト ${selectedTextIndex + 1}`}
-                    />
-
-                    <div className="text-controls">
-                        <div>
-                            <label>文字サイズ</label>
-                            <input
-                                type="range"
-                                className="range-slider"
-                                min="12"
-                                max="72"
-                                value={currentSize}
-                                onChange={(e) => setCurrentSize(parseInt(e.target.value))}
-                            />
-                        </div>
-                        <div>
-                            <label>文字色</label>
-                            <input
-                                type="color"
-                                className="color-picker"
-                                value={currentColor}
-                                onChange={(e) => setCurrentColor(e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    <button 
-                        className="btn btn-primary"
-                        onClick={handleAddText}
-                        style={{width: '100%', marginTop: '10px'}}
-                    >
-                        新しいテキストを追加
-                    </button>
-                </div>
-            )}
-
-            {/* スタンプコントロールパネル */}
-            {showStampControls && selectedImage && (
-                <div className="control-panel">
-                    <StampSelector 
-                        onPreviewStamp={handlePreviewStamp}
-                        onConfirmStamp={handleConfirmStamp}
-                        onCancelStamp={handleCancelStamp}
-                        onDeleteStamp={handleDeleteStamp}
-                        isPreviewMode={!!previewStamp}
-                        isEditing={selectedStampIndex !== null}
-                    />
-                </div>
-            )}
+            {/* ツールバー */}
+            <div className="toolbar">
+                <button 
+                    className={`btn ${showAdjustments ? 'btn-primary' : ''}`}
+                    onClick={() => handleToolbarClick('adjust')}
+                    disabled={!selectedImage}
+                >
+                    画像調整
+                </button>
+                <button 
+                    className={`btn ${showTextControls ? 'btn-primary' : ''}`}
+                    onClick={() => handleToolbarClick('text')}
+                    disabled={!selectedImage}
+                >
+                    文字入力
+                </button>
+                <button 
+                    className={`btn ${showStampControls ? 'btn-primary' : ''}`}
+                    onClick={() => handleToolbarClick('stamp')}
+                    disabled={!selectedImage}
+                >
+                    スタンプ
+                </button>
+                <button 
+                    className={`btn ${showLayoutControls ? 'btn-primary' : ''}`}
+                    onClick={() => handleToolbarClick('layout')}
+                    disabled={!selectedImage}
+                >
+                    レイアウト
+                </button>
+            </div>
 
             {/* 画像調整パネル */}
             {showAdjustments && selectedImage && (
@@ -1146,29 +1079,88 @@ const NewYearCardEditor = () => {
                             contrast: 100,
                             saturate: 100
                         })}
-                        style={{marginTop: '10px'}}
                     >
                         リセット
                     </button>
                 </div>
             )}
 
-            {/* レイアウトコントロールパネル */}
-            {showLayoutControls && selectedImage && imageSize && cropArea && (
+            {/* テキストコントロールパネル */}
+            {showTextControls && selectedImage && (
                 <div className="control-panel">
-                    <h3>レイアウト設定</h3>
-                    <p>切り抜く範囲を選択してください</p>
-                    <div className="layout-preview-container">
-                        <div className="layout-preview-content">
-                            <LayoutSelector
-                                imageSize={imageSize}
-                                cropArea={cropArea}
-                                onCropChange={setCropArea}
-                                onConfirm={handleLayoutConfirm}
-                                onCancel={handleLayoutCancel}
+                    <div className="writing-mode-toggle">
+                        <button 
+                            className={`btn ${!isVertical ? 'btn-primary' : ''}`}
+                            onClick={() => setIsVertical(false)}
+                        >
+                            横書き
+                        </button>
+                        <button 
+                            className={`btn ${isVertical ? 'btn-primary' : ''}`}
+                            onClick={() => setIsVertical(true)}
+                        >
+                            縦書き
+                        </button>
+                    </div>
+
+                    <FontSelector 
+                        selectedFont={currentFont}
+                        onFontSelect={setCurrentFont}
+                    />
+
+                    <input
+                        type="text"
+                        className="text-input"
+                        value={currentText}
+                        onChange={(e) => setCurrentText(e.target.value)}
+                        placeholder="テキストを入力"
+                    />
+
+                    <div className="text-controls">
+                        <div>
+                            <label>文字サイズ</label>
+                            <input
+                                type="range"
+                                className="range-slider"
+                                min="12"
+                                max="72"
+                                value={currentSize}
+                                onChange={(e) => setCurrentSize(parseInt(e.target.value))}
+                            />
+                            <span className="size-value">{currentSize}px</span>
+                        </div>
+                        <div>
+                            <label>文字色</label>
+                            <input
+                                type="color"
+                                value={currentColor}
+                                onChange={(e) => setCurrentColor(e.target.value)}
+                                className="color-picker"
                             />
                         </div>
                     </div>
+
+                    <button 
+                        className="btn btn-primary"
+                        onClick={handleAddText}
+                        style={{marginTop: '10px'}}
+                    >
+                        新しいテキストを追加
+                    </button>
+                </div>
+            )}
+
+            {/* スタンプコントロールパネル */}
+            {showStampControls && selectedImage && (
+                <div className="control-panel">
+                    <StampSelector 
+                        onPreviewStamp={handlePreviewStamp}
+                        onConfirmStamp={handleConfirmStamp}
+                        onCancelStamp={handleCancelStamp}
+                        onDeleteStamp={handleDeleteStamp}
+                        isPreviewMode={!!previewStamp}
+                        isEditing={selectedStampIndex !== null}
+                    />
                 </div>
             )}
 
@@ -1178,26 +1170,36 @@ const NewYearCardEditor = () => {
                     <h3>簡単3ステップで年賀状を作成！</h3>
                     <ol>
                         <li>写真をアップロード</li>
-                        <li>テンプレートとスタンプを選択</li>
-                        <li>文字を入力して完成</li>
+                        <li>レイアウトを調整</li>
+                        <li>文字やスタンプを追加</li>
                     </ol>
                     <button 
-                        onClick={() => setShowTutorial(false)}
                         className="btn"
+                        onClick={() => setShowTutorial(false)}
                     >
                         閉じる
                     </button>
                 </div>
             )}
 
-            {/* 保存ボタン */}
-            <button className="btn btn-primary" style={{width: '100%', marginTop: '20px'}}>
-                保存する
-            </button>
+            {/* 下部のアクションボタン */}
+            <div className="bottom-actions">
+                <button 
+                    className="btn btn-primary save-button"
+                    disabled={!selectedImage}
+                    onClick={() => {
+                        // TODO: 保存処理を実装
+                        console.log('Save functionality to be implemented');
+                    }}
+                >
+                    保存する
+                </button>
+            </div>
         </div>
     );
 };
 
+export default NewYearCardEditor;
 // アプリケーションのレンダリング
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<NewYearCardEditor />);
