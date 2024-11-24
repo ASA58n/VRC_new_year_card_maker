@@ -452,6 +452,168 @@ const StampSelector = React.memo(({
     );
 });
 
+// LayoutSelector コンポーネント - 画像の切り抜き範囲を選択するUI
+const LayoutSelector = React.memo(({ 
+    imageSize,
+    cropArea,
+    onCropChange,
+    onConfirm,
+    onCancel
+}) => {
+    const [isDragging, setIsDragging] = React.useState(false);
+    const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 });
+    const [dragType, setDragType] = React.useState(null);
+    const cropRef = React.useRef(null);
+
+    // ドラッグ開始時の処理
+    const handleMouseDown = (e) => {
+        const rect = cropRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        // クリックした位置に基づいてドラッグタイプを決定
+        const edgeSize = 10;
+        const isNearLeft = Math.abs(x - cropArea.x) < edgeSize;
+        const isNearRight = Math.abs(x - (cropArea.x + cropArea.width)) < edgeSize;
+        const isNearTop = Math.abs(y - cropArea.y) < edgeSize;
+        const isNearBottom = Math.abs(y - (cropArea.y + cropArea.height)) < edgeSize;
+
+        if (isNearLeft && isNearTop) setDragType('nw');
+        else if (isNearRight && isNearTop) setDragType('ne');
+        else if (isNearLeft && isNearBottom) setDragType('sw');
+        else if (isNearRight && isNearBottom) setDragType('se');
+        else if (isNearLeft) setDragType('w');
+        else if (isNearRight) setDragType('e');
+        else if (isNearTop) setDragType('n');
+        else if (isNearBottom) setDragType('s');
+        else if (x > cropArea.x && x < cropArea.x + cropArea.width &&
+                y > cropArea.y && y < cropArea.y + cropArea.height) {
+            setDragType('move');
+        }
+
+        setIsDragging(true);
+        setDragStart({ x, y });
+    };
+
+    // ドラッグ中の処理
+    const handleMouseMove = (e) => {
+        if (!isDragging) return;
+
+        const rect = cropRef.current.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const dx = x - dragStart.x;
+        const dy = y - dragStart.y;
+
+        let newCrop = { ...cropArea };
+
+        // ドラッグタイプに応じて切り抜き範囲を更新
+        switch (dragType) {
+            case 'move':
+                newCrop.x = Math.max(0, Math.min(imageSize.width - cropArea.width, cropArea.x + dx));
+                newCrop.y = Math.max(0, Math.min(imageSize.height - cropArea.height, cropArea.y + dy));
+                break;
+            case 'nw':
+                newCrop = {
+                    x: Math.max(0, Math.min(cropArea.x + cropArea.width - 100, cropArea.x + dx)),
+                    y: Math.max(0, Math.min(cropArea.y + cropArea.height - 100, cropArea.y + dy)),
+                    width: cropArea.width - dx,
+                    height: cropArea.height - dy
+                };
+                break;
+            case 'ne':
+                newCrop = {
+                    x: cropArea.x,
+                    y: Math.max(0, Math.min(cropArea.y + cropArea.height - 100, cropArea.y + dy)),
+                    width: Math.max(100, Math.min(imageSize.width - cropArea.x, cropArea.width + dx)),
+                    height: cropArea.height - dy
+                };
+                break;
+            // 他のケースも同様に実装...
+        }
+
+        onCropChange(newCrop);
+        setDragStart({ x, y });
+    };
+
+    // ドラッグ終了時の処理
+    const handleMouseUp = () => {
+        setIsDragging(false);
+        setDragType(null);
+    };
+
+    React.useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging]);
+
+    return (
+        <div className="layout-selector">
+            <div 
+                ref={cropRef}
+                className="crop-area"
+                onMouseDown={handleMouseDown}
+                style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%'
+                }}
+            >
+                <div
+                    className="crop-rectangle"
+                    style={{
+                        position: 'absolute',
+                        left: `${cropArea.x}px`,
+                        top: `${cropArea.y}px`,
+                        width: `${cropArea.width}px`,
+                        height: `${cropArea.height}px`,
+                        border: '2px solid #4a90e2',
+                        backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                        cursor: isDragging ? 
+                            (dragType === 'move' ? 'grabbing' : 'crosshair') : 
+                            'grab'
+                    }}
+                >
+                    {/* リサイズハンドル */}
+                    {['nw', 'ne', 'sw', 'se'].map(corner => (
+                        <div
+                            key={corner}
+                            className={`resize-handle ${corner}`}
+                            style={{
+                                position: 'absolute',
+                                width: '10px',
+                                height: '10px',
+                                background: '#4a90e2',
+                                border: '1px solid white',
+                                borderRadius: '50%',
+                                ...(corner.includes('n') ? { top: '-5px' } : { bottom: '-5px' }),
+                                ...(corner.includes('w') ? { left: '-5px' } : { right: '-5px' }),
+                                cursor: `${corner}-resize`
+                            }}
+                        />
+                    ))}
+                </div>
+            </div>
+            <div className="layout-actions">
+                <button className="btn btn-primary" onClick={onConfirm}>
+                    確定
+                </button>
+                <button className="btn" onClick={onCancel}>
+                    キャンセル
+                </button>
+            </div>
+        </div>
+    );
+});
+
 // メインの NewYearCardEditor コンポーネント
 const NewYearCardEditor = () => {
     // 状態管理
@@ -490,6 +652,11 @@ const NewYearCardEditor = () => {
     const [selectedStampIndex, setSelectedStampIndex] = React.useState(null);
     const [previewStamp, setPreviewStamp] = React.useState(null);
 
+    // レイアウト
+    const [showLayoutControls, setShowLayoutControls] = React.useState(false);
+    const [cropArea, setCropArea] = React.useState(null);
+    const [imageSize, setImageSize] = React.useState(null);
+    
     // 画像アップロード処理
     const handleImageUpload = (event) => {
         const file = event.target.files[0];
@@ -500,6 +667,21 @@ const NewYearCardEditor = () => {
         }
     };
 
+    // 画像がロードされたときのサイズ取得
+    const handleImageLoad = (e) => {
+        setImageSize({
+            width: e.target.naturalWidth,
+            height: e.target.naturalHeight
+        });
+        // 初期の切り抜き範囲を設定
+        setCropArea({
+            x: 0,
+            y: 0,
+            width: e.target.naturalWidth,
+            height: e.target.naturalHeight
+        });
+    };
+    
     // 画像スタイル
     const getImageStyle = () => ({
         filter: `brightness(${adjustments.brightness}%) 
@@ -628,11 +810,22 @@ const NewYearCardEditor = () => {
         }
     };
 
-    // ツールバーのトグル処理
+    // レイアウトの確定処理
+    const handleLayoutConfirm = () => {
+        setShowLayoutControls(false);
+    };
+    
+    // レイアウトのキャンセル処理
+    const handleLayoutCancel = () => {
+        setShowLayoutControls(false);
+    };
+    
+    // ツールバーの処理を更新
     const handleToolbarClick = (tool) => {
         setShowAdjustments(tool === 'adjust');
         setShowTextControls(tool === 'text');
         setShowStampControls(tool === 'stamp');
+        setShowLayoutControls(tool === 'layout');
     };
 
     // 初期テキスト要素の選択
@@ -658,6 +851,7 @@ const NewYearCardEditor = () => {
                             alt="プレビュー" 
                             className="preview-image"
                             style={getImageStyle()}
+                            onLoad={handleImageLoad}
                         />
                         <div className="text-layer">
                             {/* テキスト要素 */}
@@ -856,6 +1050,21 @@ const NewYearCardEditor = () => {
                     >
                         リセット
                     </button>
+                </div>
+            )}
+
+            {/* レイアウトコントロールパネル */}
+            {showLayoutControls && selectedImage && imageSize && (
+                <div className="control-panel">
+                    <h3>レイアウト設定</h3>
+                    <p>切り抜く範囲を選択してください</p>
+                    <LayoutSelector
+                        imageSize={imageSize}
+                        cropArea={cropArea}
+                        onCropChange={setCropArea}
+                        onConfirm={handleLayoutConfirm}
+                        onCancel={handleLayoutCancel}
+                    />
                 </div>
             )}
 
