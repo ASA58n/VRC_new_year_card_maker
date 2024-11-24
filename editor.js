@@ -1,8 +1,11 @@
+// React の名前空間から必要な機能を取得
+const { useState, useEffect, useRef, memo } = React;
+
 // TextElement コンポーネント - ドラッグ可能なテキスト要素
 const TextElement = ({ text, style, position, isSelected, onSelect, onDragStart, onDrag, onDragEnd }) => {
-    const elementRef = React.useRef(null);
-    const [isDragging, setIsDragging] = React.useState(false);
-    const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
+    const elementRef = useRef(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
     const handleMouseDown = (e) => {
         setIsDragging(true);
@@ -125,10 +128,10 @@ const fonts = [
 ];
 
 // StampElement コンポーネント - ドラッグ＆リサイズ可能なスタンプ要素
-const StampElement = ({ src, style, position, size, isSelected, onSelect, onDragStart, onDrag, onDragEnd, onResize }) => {
-    const elementRef = React.useRef(null);
-    const [isDragging, setIsDragging] = React.useState(false);
-    const [isResizing, setIsResizing] = React.useState(false);
+const StampElement = memo(({ src, style, position, size, isSelected, onSelect, onDragStart, onDrag, onDragEnd, onResize }) => {
+    const elementRef = useRef(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [isResizing, setIsResizing] = useState(false);
     const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
     const [startSize, setStartSize] = React.useState({ width: 0, height: 0 });
     const [startPos, setStartPos] = React.useState({ x: 0, y: 0 });
@@ -243,8 +246,8 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
 };
 
 // FontSelector コンポーネント - フォント選択UI
-const FontSelector = React.memo(({ selectedFont, onFontSelect }) => {
-    const [isExpanded, setIsExpanded] = React.useState(false);
+const FontSelector = memo(({ selectedFont, onFontSelect }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
     
     const categories = [
         {
@@ -325,7 +328,7 @@ const FontSelector = React.memo(({ selectedFont, onFontSelect }) => {
 });
 
 // StampSelector コンポーネント - スタンプ選択UI
-const StampSelector = React.memo(({ 
+const StampSelector = memo(({ 
     onPreviewStamp, 
     onConfirmStamp, 
     onCancelStamp, 
@@ -333,7 +336,7 @@ const StampSelector = React.memo(({
     isPreviewMode, 
     isEditing 
 }) => {
-    const [uploadedStamps, setUploadedStamps] = React.useState([]);
+    const [uploadedStamps, setUploadedStamps] = useState([]);
 
     // 画像アップロード処理
     const handleFileUpload = (e) => {
@@ -453,15 +456,16 @@ const StampSelector = React.memo(({
 });
 
 // LayoutSelector コンポーネントの改良版
-const LayoutSelector = React.memo(({ 
+const LayoutSelector = memo(({ 
     imageSize,
     cropArea,
     onCropChange,
     onConfirm,
-    onCancel
+    onCancel,
+    selectedImage
 }) => {
-    const [isDragging, setIsDragging] = React.useState(false);
-    const [dragStart, setDragStart] = React.useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [dragType, setDragType] = React.useState(null);
     const cropRef = React.useRef(null);
     const [aspectRatio, setAspectRatio] = React.useState('free');
@@ -690,12 +694,11 @@ const LayoutSelector = React.memo(({
         </div>
     );
 });
-// メインの NewYearCardEditor コンポーネント
+
 // メインの NewYearCardEditor コンポーネント
 const NewYearCardEditor = () => {
-    // 状態管理
-    const [selectedImage, setSelectedImage] = React.useState(null);
-    const [showTutorial, setShowTutorial] = React.useState(true);
+    const [selectedImage, setSelectedImage] = useState(null);
+    const [showTutorial, setShowTutorial] = useState(true);
     const [showAdjustments, setShowAdjustments] = React.useState(false);
     const [showTextControls, setShowTextControls] = React.useState(false);
     const [showStampControls, setShowStampControls] = React.useState(false);
@@ -1200,7 +1203,5 @@ const NewYearCardEditor = () => {
 };
 
 // アプリケーションのレンダリング
-window.onload = function() {
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(NewYearCardEditor));
-};
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(NewYearCardEditor));
