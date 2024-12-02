@@ -3,290 +3,234 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>年賀状フォトエディター</title>
+    <title>年賀状エディター</title>
     
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Gamja+Flower&family=Kaisei+HarunoUmi:wght@400;500;700&family=Monomaniac+One&family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=Yuji+Syuku&family=Zen+Kurenaido&family=Zen+Maru+Gothic:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Serif+JP:wght@400;700&family=Yuji+Syuku&family=Kaisei+HarunoUmi&family=Zen+Maru+Gothic&family=Zen+Kurenaido&family=Monomaniac+One&family=Gamja+Flower&display=swap" rel="stylesheet">
     
-    <!-- React と ReactDOM -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-
     <style>
-        /* ベーススタイル */
+        /* リセットCSS */
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
+            box-sizing: border-box;
         }
 
         body {
             font-family: 'Noto Sans JP', sans-serif;
             background-color: #f5f5f5;
-            color: #333;
-            line-height: 1.6;
         }
 
-        /* エディターコンテナ */
+        /* エディター全体のスタイル */
         .editor-container {
-            max-width: 1200px;
-            margin: 20px auto;
-            padding: 20px;
-        }
-
-        /* エディターメイン部分 */
-        .editor-main {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            min-height: 400px;
             display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            overflow: hidden;
-            margin-bottom: 20px;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            gap: 20px;
+            background-color: white;
         }
 
-        /* プレビュー画像 */
+        /* エディターのメイン部分 */
+        .editor-main {
+            flex: 1;
+            position: relative;
+            background-color: #eee;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        /* 画像コンテナ */
+        .image-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
         .preview-image {
             max-width: 100%;
-            max-height: 70vh;
+            max-height: 100%;
             object-fit: contain;
         }
 
         /* ツールバー */
         .toolbar {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            display: flex;
             gap: 10px;
-            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
         }
 
         /* ボタンスタイル */
         .btn {
-            padding: 10px 15px;
-            border: 1px solid #ddd;
-            background: white;
-            color: #333;
+            padding: 8px 16px;
+            border: 1px solid #dee2e6;
             border-radius: 4px;
+            background-color: white;
             cursor: pointer;
-            font-size: 14px;
-            transition: all 0.2s ease;
+            transition: all 0.2s;
         }
 
         .btn:hover {
-            background: #f5f5f5;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
+            background-color: #f8f9fa;
         }
 
         .btn-primary {
-            background: #4a90e2;
+            background-color: #007bff;
             color: white;
-            border: none;
+            border-color: #007bff;
         }
 
         .btn-primary:hover {
-            background: #357abd;
+            background-color: #0056b3;
         }
 
-        /* テキストレイヤー */
-        .text-layer {
+        /* コントロールパネル */
+        .control-panel {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-        }
-
-        .text-layer > * {
-            pointer-events: auto;
+            right: 20px;
+            top: 20px;
+            width: 300px;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
 
         /* テキスト要素 */
         .text-element {
             position: absolute;
-            cursor: move;
             padding: 4px;
+            cursor: grab;
             user-select: none;
         }
 
         .text-element.selected {
-            outline: 2px solid #4a90e2;
+            outline: 2px solid #007bff;
         }
 
-        /* スタンプ関連 */
+        /* スタンプ要素 */
         .stamp-element {
             position: absolute;
-            min-width: 30px;
-            min-height: 30px;
+            cursor: grab;
         }
 
         .stamp-element.selected {
-            outline: 2px solid #4a90e2;
+            outline: 2px solid #007bff;
         }
 
         .resize-handle {
             position: absolute;
+            right: -5px;
+            bottom: -5px;
             width: 10px;
             height: 10px;
-            background: #4a90e2;
-            border: 1px solid white;
-            border-radius: 50%;
-            bottom: -5px;
-            right: -5px;
+            background-color: #007bff;
             cursor: se-resize;
         }
 
-        /* コントロールパネル */
-        .control-panel {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            margin-top: 15px;
-        }
-
-        /* 入力要素 */
+        /* その他の必要なスタイル */
         .text-input {
             width: 100%;
             padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
             margin: 10px 0;
-            font-size: 14px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
         }
 
+        .upload-prompt {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            gap: 20px;
+        }
+
+        /* Font Selector スタイル */
+        .font-selector {
+            margin: 15px 0;
+        }
+
+        .font-preview {
+            margin-bottom: 10px;
+        }
+
+        .current-font-sample {
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* Tutorial スタイル */
+        .tutorial {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        /* レイアウトモード用スタイル */
+        .layout-mode .text-layer {
+            display: none;
+        }
+
+        .layout-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        /* スライダー用スタイル */
         .range-slider {
             width: 100%;
             margin: 10px 0;
         }
 
-        /* フォントセレクター */
-        .font-selector {
-            margin-bottom: 15px;
-        }
-
-        .font-preview {
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        /* レイアウトモード */
-        .editor-main.layout-mode .text-layer {
-            display: none;
-        }
-
-        /* アップロードプロンプト */
-        .upload-prompt {
-            text-align: center;
-            padding: 40px;
-        }
-
+        /* アップロードボタン */
         .file-input {
-            margin-top: 10px;
-        }
-
-        /* チュートリアル */
-        .tutorial {
-            background: #e3f2fd;
-            padding: 20px;
-            border-radius: 8px;
-            margin-top: 20px;
-        }
-
-        .tutorial h3 {
-            margin-bottom: 10px;
-            color: #1976d2;
-        }
-
-        .tutorial ol {
-            margin-left: 20px;
-            margin-bottom: 15px;
-        }
-
-        /* レスポンシブデザイン */
-        @media (max-width: 768px) {
-            .editor-container {
-                padding: 10px;
-            }
-
-            .toolbar {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .control-panel {
-                padding: 15px;
-            }
-        }
-
-        /* 新しく追加したレイアウトモード用のスタイル */
-        .layout-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 10;
-        }
-
-        .editor-content {
-            position: relative;
-            width: 100%;
-            height: 100%;
-        }
-
-        .image-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* カラーピッカー */
-        .color-picker {
-            width: 40px;
-            height: 40px;
-            padding: 0;
-            border: none;
+            padding: 10px;
+            background-color: #f8f9fa;
             border-radius: 4px;
             cursor: pointer;
         }
 
-        /* 書き込みモードトグル */
-        .writing-mode-toggle {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-
-        .writing-mode-toggle button {
-            flex: 1;
-        }
-
-        /* 下部アクション */
+        /* Bottom Actions */
         .bottom-actions {
-            margin-top: 20px;
-            text-align: center;
+            display: flex;
+            justify-content: center;
+            padding: 10px;
         }
 
         .save-button {
-            min-width: 200px;
+            padding: 10px 30px;
         }
     </style>
 </head>
 <body>
     <div id="root"></div>
+
+    <!-- React と関連ライブラリの読み込み -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+    <!-- エディターのスクリプト -->
     <script type="text/babel" src="editor.js"></script>
 </body>
 </html>
