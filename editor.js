@@ -558,89 +558,95 @@ const downloadImage = async (originalImage, elements, selectionArea = null, adju
         const img = new Image();
         
         img.onload = () => {
-            // キャンバスのサイズを設定
-            const displayRect = originalImage.getBoundingClientRect();
-            const scale = img.width / displayRect.width;  // 実際の画像サイズと表示サイズの比率
+            // イメージとキャンバスの位置関係を計算
+            const imageRect = originalImage.getBoundingClientRect();
+            const parentRect = originalImage.parentElement.getBoundingClientRect();
+            const displayWidth = imageRect.width;
+            const displayHeight = imageRect.height;
+            const scaleX = img.naturalWidth / displayWidth;
+            const scaleY = img.naturalHeight / displayHeight;
 
-            // キャンバスのサイズを設定
-            let canvasWidth, canvasHeight;
+            // キャンバスのサイズと描画範囲を設定
             let sx, sy, sWidth, sHeight;
-            let dx = 0, dy = 0;
-
             if (selectionArea) {
-                // 選択範囲がある場合、その範囲に合わせる
-                sx = selectionArea.position.x * scale;
-                sy = selectionArea.position.y * scale;
-                sWidth = selectionArea.size.width * scale;
-                sHeight = selectionArea.size.height * scale;
-                canvasWidth = sWidth;
-                canvasHeight = sHeight;
+                // 選択範囲の位置を実際の画像サイズに変換
+                const relativeX = selectionArea.position.x - (imageRect.left - parentRect.left);
+                const relativeY = selectionArea.position.y - (imageRect.top - parentRect.top);
+                
+                sx = relativeX * scaleX;
+                sy = relativeY * scaleY;
+                sWidth = selectionArea.size.width * scaleX;
+                sHeight = selectionArea.size.height * scaleY;
+                
+                canvas.width = sWidth;
+                canvas.height = sHeight;
             } else {
-                // 選択範囲がない場合、元の画像サイズを使用
                 sx = 0;
                 sy = 0;
-                sWidth = img.width;
-                sHeight = img.height;
-                canvasWidth = img.width;
-                canvasHeight = img.height;
+                sWidth = img.naturalWidth;
+                sHeight = img.naturalHeight;
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
             }
 
-            canvas.width = canvasWidth;
-            canvas.height = canvasHeight;
-
-            // 一時キャンバスを作成して画像調整を適用
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = img.width;
-            tempCanvas.height = img.height;
-            const tempCtx = tempCanvas.getContext('2d');
-
-            // 画像を一時キャンバスに描画
-            tempCtx.drawImage(img, 0, 0);
-
             // 画像調整を適用
-            tempCtx.filter = `brightness(${adjustments.brightness}%) 
-                            contrast(${adjustments.contrast}%) 
-                            saturate(${adjustments.saturate}%)`;
-            tempCtx.drawImage(tempCanvas, 0, 0);
-            tempCtx.filter = 'none';
+            ctx.filter = `brightness(${adjustments.brightness}%) 
+                         contrast(${adjustments.contrast}%) 
+                         saturate(${adjustments.saturate}%)`;
 
-            // 調整済みの画像を最終キャンバスに描画
-            ctx.drawImage(tempCanvas, sx, sy, sWidth, sHeight, dx, dy, canvasWidth, canvasHeight);
+            // 画像を描画
+            ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+            
+            // フィルターをリセット
+            ctx.filter = 'none';
+
+            // 要素の描画用の変換スケール
+            const scale = selectionArea ? 
+                (canvas.width / selectionArea.size.width) : 
+                scaleX;
 
             // テキストとスタンプを描画
             elements.forEach(element => {
+                const elementX = selectionArea ?
+                    (element.position.x - selectionArea.position.x) :
+                    (element.position.x - (imageRect.left - parentRect.left));
+                const elementY = selectionArea ?
+                    (element.position.y - selectionArea.position.y) :
+                    (element.position.y - (imageRect.top - parentRect.top));
+
                 if (element.type === 'text') {
                     const fontSize = parseInt(element.style.fontSize) * scale;
                     ctx.font = `${fontSize}px ${element.style.fontFamily.replace(/[']/g, '')}`;
                     ctx.fillStyle = element.style.color;
-                    const x = (element.position.x - (selectionArea?.position.x || 0)) * scale;
-                    const y = (element.position.y - (selectionArea?.position.y || 0)) * scale + fontSize;
 
                     if (element.style.writingMode === 'vertical-rl') {
-                        // 縦書きテキストの処理
                         const chars = element.text.split('');
-                        let currentY = y;
+                        let currentY = elementY * scale;
                         chars.forEach(char => {
-                            ctx.fillText(char, x, currentY);
+                            ctx.fillText(char, elementX * scale, currentY);
                             currentY += fontSize;
                         });
                     } else {
-                        ctx.fillText(element.text, x, y);
+                        ctx.fillText(element.text, elementX * scale, elementY * scale + fontSize);
                     }
                 } else if (element.type === 'stamp') {
                     const stampImg = new Image();
                     stampImg.onload = () => {
-                        const x = (element.position.x - (selectionArea?.position.x || 0)) * scale;
-                        const y = (element.position.y - (selectionArea?.position.y || 0)) * scale;
                         const width = element.size.width * scale;
                         const height = element.size.height * scale;
-                        ctx.drawImage(stampImg, x, y, width, height);
+                        ctx.drawImage(
+                            stampImg,
+                            elementX * scale,
+                            elementY * scale,
+                            width,
+                            height
+                        );
                     };
                     stampImg.src = element.src;
                 }
             });
 
-            // 画像をダウンロード
+            // スタンプの読み込みを待ってからダウンロード
             setTimeout(() => {
                 const link = document.createElement('a');
                 link.download = 'newyear-card.png';
