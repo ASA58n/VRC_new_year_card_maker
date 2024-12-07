@@ -1228,7 +1228,8 @@ const NewYearCardEditor = () => {
                         <li><a href="https://online.brother.co.jp/ot/nengajo/stamp/?page=1">brother 年賀状素材</a></li>
                         <li><a href="https://pepero-nenga.com/illust/nengajoo_illust_index.html">年賀状スープ 無料イラスト</a></li>
                     </ul>
-                    <a href="https://x.com/ASA58n_" target="_blank">何か要望とかあったら連絡ください～！何もないとは思いますが、使用は自己責任です。</a>
+                    <a href="https://x.com/ASA58n_" target="_blank">Twitter（X）</a>
+                    <p>何か要望とかあったら連絡ください～！何もないとは思いますが、使用は自己責任です。</p>
                 </div>
             )}
 
