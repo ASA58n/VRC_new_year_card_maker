@@ -330,8 +330,8 @@ const StampSelector = React.memo(({
     onDeleteStamp,
     isPreviewMode, 
     isEditing,
-    uploadedStamps,    // 追加
-    onUploadStamp     // 追加
+    uploadedStamps,    // propsとして受け取る
+    onUploadStamp
 }) => {
     const presetStampFiles = [
         'stamp_01.png',
@@ -345,7 +345,8 @@ const StampSelector = React.memo(({
         }))
     , []);
 
-    // 画像アップロード処理
+    // uploadedStampsのstateを削除し、直接propsを使用
+
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
         if (file && file.type.startsWith('image/')) {
@@ -361,36 +362,12 @@ const StampSelector = React.memo(({
                             height: img.height
                         }
                     };
-                    onUploadStamp(stamp);  // 親コンポーネントに通知
+                    onUploadStamp(stamp);
                 };
                 img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         }
-    };
-
-    // スタンプ選択処理
-    const handleSelectStamp = (stamp) => {
-        const img = new Image();
-        img.onload = () => {
-            const maxSize = 200;
-            let width = img.width / 3;
-            let height = img.height / 3;
-            
-            if (width > maxSize || height > maxSize) {
-                const aspect = width / height;
-                if (width > height) {
-                    width = maxSize;
-                    height = width / aspect;
-                } else {
-                    height = maxSize;
-                    width = height * aspect;
-                }
-            }
-
-            onPreviewStamp(stamp.src, { width, height });
-        };
-        img.src = stamp.src;
     };
 
     // プレビューモードまたは編集モード時のUI
