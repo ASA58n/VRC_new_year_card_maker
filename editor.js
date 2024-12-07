@@ -1228,10 +1228,10 @@ const NewYearCardEditor = () => {
                 </div>
             )}
 
-            // {/* 保存ボタン */}
-            // <button className="btn btn-primary" style={{width: '100%', marginTop: '20px'}}>
-            //     保存する
-            // </button>
+            {/* 保存ボタン */}
+            <button className="btn btn-primary" style={{width: '100%', marginTop: '20px'}}>
+                保存する
+            </button>
         </div>
     );
 };
