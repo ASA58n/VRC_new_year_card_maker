@@ -551,7 +551,7 @@ const SelectionArea = ({ position, size, isVisible, onMove, onResize }) => {
 };
 
 // 画像のダウンロード処理用のユーティリティ関数
-const downloadImage = async (originalImage, elements, selectionArea = null) => {
+const downloadImage = async (originalImage, elements, selectionArea = null, adjustments) => {
     return new Promise((resolve) => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
@@ -559,43 +559,74 @@ const downloadImage = async (originalImage, elements, selectionArea = null) => {
         
         img.onload = () => {
             // キャンバスのサイズを設定
-            let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
-            let dx = 0, dy = 0, dWidth = img.width, dHeight = img.height;
+            const displayRect = originalImage.getBoundingClientRect();
+            const scale = img.width / displayRect.width;  // 実際の画像サイズと表示サイズの比率
+
+            // キャンバスのサイズを設定
+            let canvasWidth, canvasHeight;
+            let sx, sy, sWidth, sHeight;
+            let dx = 0, dy = 0;
 
             if (selectionArea) {
                 // 選択範囲がある場合、その範囲に合わせる
-                const scaleX = img.width / originalImage.width;
-                const scaleY = img.height / originalImage.height;
-                
-                sx = selectionArea.position.x * scaleX;
-                sy = selectionArea.position.y * scaleY;
-                sWidth = selectionArea.size.width * scaleX;
-                sHeight = selectionArea.size.height * scaleY;
-                
-                canvas.width = sWidth;
-                canvas.height = sHeight;
-                dx = 0;
-                dy = 0;
-                dWidth = sWidth;
-                dHeight = sHeight;
+                sx = selectionArea.position.x * scale;
+                sy = selectionArea.position.y * scale;
+                sWidth = selectionArea.size.width * scale;
+                sHeight = selectionArea.size.height * scale;
+                canvasWidth = sWidth;
+                canvasHeight = sHeight;
             } else {
                 // 選択範囲がない場合、元の画像サイズを使用
-                canvas.width = img.width;
-                canvas.height = img.height;
+                sx = 0;
+                sy = 0;
+                sWidth = img.width;
+                sHeight = img.height;
+                canvasWidth = img.width;
+                canvasHeight = img.height;
             }
 
-            // 背景画像を描画
-            ctx.drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+
+            // 一時キャンバスを作成して画像調整を適用
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // 画像を一時キャンバスに描画
+            tempCtx.drawImage(img, 0, 0);
+
+            // 画像調整を適用
+            tempCtx.filter = `brightness(${adjustments.brightness}%) 
+                            contrast(${adjustments.contrast}%) 
+                            saturate(${adjustments.saturate}%)`;
+            tempCtx.drawImage(tempCanvas, 0, 0);
+            tempCtx.filter = 'none';
+
+            // 調整済みの画像を最終キャンバスに描画
+            ctx.drawImage(tempCanvas, sx, sy, sWidth, sHeight, dx, dy, canvasWidth, canvasHeight);
 
             // テキストとスタンプを描画
-            const scale = dWidth / originalImage.width;
             elements.forEach(element => {
                 if (element.type === 'text') {
-                    ctx.font = `${parseInt(element.style.fontSize) * scale}px ${element.style.fontFamily.replace(/[']/g, '')}`;
+                    const fontSize = parseInt(element.style.fontSize) * scale;
+                    ctx.font = `${fontSize}px ${element.style.fontFamily.replace(/[']/g, '')}`;
                     ctx.fillStyle = element.style.color;
                     const x = (element.position.x - (selectionArea?.position.x || 0)) * scale;
-                    const y = (element.position.y - (selectionArea?.position.y || 0)) * scale + parseInt(element.style.fontSize) * scale;
-                    ctx.fillText(element.text, x, y);
+                    const y = (element.position.y - (selectionArea?.position.y || 0)) * scale + fontSize;
+
+                    if (element.style.writingMode === 'vertical-rl') {
+                        // 縦書きテキストの処理
+                        const chars = element.text.split('');
+                        let currentY = y;
+                        chars.forEach(char => {
+                            ctx.fillText(char, x, currentY);
+                            currentY += fontSize;
+                        });
+                    } else {
+                        ctx.fillText(element.text, x, y);
+                    }
                 } else if (element.type === 'stamp') {
                     const stampImg = new Image();
                     stampImg.onload = () => {
@@ -616,12 +647,13 @@ const downloadImage = async (originalImage, elements, selectionArea = null) => {
                 link.href = canvas.toDataURL('image/png');
                 link.click();
                 resolve();
-            }, 500); // スタンプの読み込みを待つため少し遅延
+            }, 500);
         };
 
         img.src = originalImage.src;
     });
 };
+
 // メインの NewYearCardEditor コンポーネント
 const NewYearCardEditor = () => {
     // 状態管理
@@ -838,7 +870,8 @@ const NewYearCardEditor = () => {
         await downloadImage(
             imageElement,
             elements,
-            selectionArea
+            selectionArea,
+            adjustments  // 画像調整の設定を追加
         );
     };
     
