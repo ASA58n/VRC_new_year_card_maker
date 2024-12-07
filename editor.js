@@ -338,15 +338,14 @@ const StampSelector = React.memo(({
         // stamp ディレクトリに配置したファイル名を列挙
     ];
     const [uploadedStamps, setUploadedStamps] = React.useState([]);
-    //const [presetStamps, setPresetStamps] = React.useState([]);
-
-    // プリセットスタンプの読み込み
-    const [presetStamps] = React.useState(
+    
+    // presetStampsの宣言を一つにまとめる
+    const presetStamps = React.useMemo(() => 
         presetStampFiles.map(file => ({
             id: file,
-            src: `./stamp/${file}`  // 相対パスで参照
+            src: `./stamp/${file}`
         }))
-    );
+    , []);
 
     // 画像アップロード処理
     const handleFileUpload = (e) => {
