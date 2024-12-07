@@ -329,19 +329,15 @@ const StampSelector = React.memo(({
     onCancelStamp, 
     onDeleteStamp,
     isPreviewMode, 
-    isEditing ,
-    uploadedStamps,
-    onUploadStamp
+    isEditing,
+    uploadedStamps,    // 追加
+    onUploadStamp     // 追加
 }) => {
     const presetStampFiles = [
         'stamp_01.png',
         'stamp_02.png',
-        //'stamp3.png'
-        // stamp ディレクトリに配置したファイル名を列挙
     ];
-    //const [uploadedStamps, setUploadedStamps] = React.useState([]);
     
-    // presetStampsの宣言を一つにまとめる
     const presetStamps = React.useMemo(() => 
         presetStampFiles.map(file => ({
             id: file,
