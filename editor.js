@@ -1206,25 +1206,32 @@ const NewYearCardEditor = () => {
             {/* チュートリアル */}
             {showTutorial && (
                 <div className="tutorial">
-                    <h3>簡単3ステップで年賀状を作成！</h3>
+                    <h3>VRChatの年賀状を作成！</h3>
                     <ol>
                         <li>写真をアップロード</li>
-                        <li>テンプレートとスタンプを選択</li>
-                        <li>文字を入力して完成</li>
+                        <li>画像の明るさなどを調整</li>
+                        <li>スタンプやテキスト入力で文字やアイコンで装飾！</li>
+                        <li>レイアウトからダウンロードして完成！</li>
                     </ol>
-                    <button 
-                        onClick={() => setShowTutorial(false)}
-                        className="btn"
-                    >
-                        閉じる
-                    </button>
+                    <h4>こちらのサイトにスタンプとして使えそうな素材があるので良ければ！</h4>
+                    <ul>
+                        <li><a href="https://www.post.japanpost.jp/send/create/freeillust/downloads/">郵便局フリーイラスト</a></li>
+                        <li><a href="https://online.brother.co.jp/ot/nengajo/stamp/?page=1">brother 年賀状素材</a></li>
+                        <li><a href="https://pepero-nenga.com/illust/nengajoo_illust_index.html">年賀状スープ 無料イラスト</a></li>
+                    </ul>
+                    // <button 
+                    //     onClick={() => setShowTutorial(false)}
+                    //     className="btn"
+                    // >
+                    //     閉じる
+                    // </button>
                 </div>
             )}
 
-            {/* 保存ボタン */}
-            <button className="btn btn-primary" style={{width: '100%', marginTop: '20px'}}>
-                保存する
-            </button>
+            // {/* 保存ボタン */}
+            // <button className="btn btn-primary" style={{width: '100%', marginTop: '20px'}}>
+            //     保存する
+            // </button>
         </div>
     );
 };
