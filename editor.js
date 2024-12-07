@@ -871,7 +871,7 @@ const NewYearCardEditor = () => {
         setShowStampControls(tool === 'stamp');
         setShowLayoutControls(tool === 'layout');
         
-        // レイアウトツール以外を選択した時は選択範囲を非表示
+        // ツール以外を選択した時は選択範囲を非表示
         if (tool !== 'layout') {
             setSelectionArea(null);
         }
@@ -1055,7 +1055,6 @@ const NewYearCardEditor = () => {
                 >
                     レイアウト
                 </button>
-                <button className="btn">レイアウト</button>
             </div>
 
             {/* テキストコントロールパネル */}
