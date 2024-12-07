@@ -1224,9 +1224,9 @@ const NewYearCardEditor = () => {
                     <h4>こちらのサイトにスタンプとして使えそうな素材があるので良ければ！</h4>
                     <p>再配布が禁止されているので、ご自分でダウンロードしてからスタンプとしてアップロードして使ってください</p>
                     <ul>
-                        <li><a href="https://www.post.japanpost.jp/send/create/freeillust/downloads/">郵便局フリーイラスト</a></li>
-                        <li><a href="https://online.brother.co.jp/ot/nengajo/stamp/?page=1">brother 年賀状素材</a></li>
-                        <li><a href="https://pepero-nenga.com/illust/nengajoo_illust_index.html">年賀状スープ 無料イラスト</a></li>
+                        <li><a href="https://www.post.japanpost.jp/send/create/freeillust/downloads/" target="_blank">郵便局フリーイラスト</a></li>
+                        <li><a href="https://online.brother.co.jp/ot/nengajo/stamp/?page=1" target="_blank">brother 年賀状素材</a></li>
+                        <li><a href="https://pepero-nenga.com/illust/nengajoo_illust_index.html" target="_blank">年賀状スープ 無料イラスト</a></li>
                     </ul>
                     <a href="https://x.com/ASA58n_" target="_blank">Twitter（X）</a>
                     <p>何か要望とかあったら連絡ください～！何もないとは思いますが、使用は自己責任です。</p>
