@@ -338,7 +338,7 @@ const StampSelector = React.memo(({
         // stamp ディレクトリに配置したファイル名を列挙
     ];
     const [uploadedStamps, setUploadedStamps] = React.useState([]);
-    const [presetStamps, setPresetStamps] = React.useState([]);
+    //const [presetStamps, setPresetStamps] = React.useState([]);
 
     // プリセットスタンプの読み込み
     const [presetStamps] = React.useState(
