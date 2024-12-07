@@ -1211,7 +1211,7 @@ const NewYearCardEditor = () => {
             {showTutorial && (
                 <div className="tutorial">
                     <h2>VRChatの年賀状を作成！</h2>
-                    <h3>作成した年賀状を上げる場合は #VRC_HNY_Card_2025 を付けて頂けると嬉しいです！”</h3>
+                    <h3>作成した年賀状を上げる場合は <span className="hashtag">#VRC_HNY_Card_2025</span> を付けて頂けると嬉しいです！</h3>
                     <ol>
                         <li>写真をアップロード(アップロードしないと何も操作はできないです！)</li>
                         <li>画像の明るさなどを調整</li>
