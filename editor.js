@@ -331,27 +331,22 @@ const StampSelector = React.memo(({
     isPreviewMode, 
     isEditing 
 }) => {
+    const presetStampFiles = [
+        'stamp1.png',
+        'stamp2.png',
+        'stamp3.png'
+        // stamp ディレクトリに配置したファイル名を列挙
+    ];
     const [uploadedStamps, setUploadedStamps] = React.useState([]);
     const [presetStamps, setPresetStamps] = React.useState([]);
 
     // プリセットスタンプの読み込み
-    React.useEffect(() => {
-        // stamp ディレクトリ内のファイルを取得
-        fetch('/stamp')
-            .then(response => response.json())
-            .then(files => {
-                const stamps = files
-                    .filter(file => file.toLowerCase().endsWith('.png'))
-                    .map(file => ({
-                        id: file,
-                        src: `/stamp/${file}`
-                    }));
-                setPresetStamps(stamps);
-            })
-            .catch(error => {
-                console.error('スタンプの読み込みに失敗しました:', error);
-            });
-    }, []);
+    const [presetStamps] = React.useState(
+        presetStampFiles.map(file => ({
+            id: file,
+            src: `./stamp/${file}`  // 相対パスで参照
+        }))
+    );
 
     // 画像アップロード処理
     const handleFileUpload = (e) => {
