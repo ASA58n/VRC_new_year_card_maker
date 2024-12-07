@@ -332,9 +332,9 @@ const StampSelector = React.memo(({
     isEditing 
 }) => {
     const presetStampFiles = [
-        'stamp1.png',
-        'stamp2.png',
-        'stamp3.png'
+        'stamp_01.png',
+        'stamp_02.png',
+        //'stamp3.png'
         // stamp ディレクトリに配置したファイル名を列挙
     ];
     const [uploadedStamps, setUploadedStamps] = React.useState([]);
