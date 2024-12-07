@@ -1210,9 +1210,10 @@ const NewYearCardEditor = () => {
             {/* チュートリアル */}
             {showTutorial && (
                 <div className="tutorial">
-                    <h3>VRChatの年賀状を作成！</h3>
+                    <h2>VRChatの年賀状を作成！</h2>
+                    <h3>作成した年賀状を上げる場合は #VRC_HNY_Card_2025 を付けて頂けると嬉しいです！</h3>
                     <ol>
-                        <li>写真をアップロード</li>
+                        <li>写真をアップロード(アップロードしないと何も操作はできないです！)</li>
                         <li>画像の明るさなどを調整</li>
                         <li>スタンプやテキスト入力で文字やアイコンで装飾！</li>
                         <li>レイアウトからダウンロードして完成！</li>
@@ -1221,11 +1222,13 @@ const NewYearCardEditor = () => {
                     <p>配置したスタンプは確定させないとダウンロード時に描画されないので注意してください～</p>
 
                     <h4>こちらのサイトにスタンプとして使えそうな素材があるので良ければ！</h4>
+                    <p>再配布が禁止されているので、ご自分でダウンロードしてからスタンプとしてアップロードして使ってください</p>
                     <ul>
                         <li><a href="https://www.post.japanpost.jp/send/create/freeillust/downloads/">郵便局フリーイラスト</a></li>
                         <li><a href="https://online.brother.co.jp/ot/nengajo/stamp/?page=1">brother 年賀状素材</a></li>
                         <li><a href="https://pepero-nenga.com/illust/nengajoo_illust_index.html">年賀状スープ 無料イラスト</a></li>
                     </ul>
+                    <strong><a href="https://x.com/ASA58n_" target="_blank"何か要望とかあったら連絡ください！何もないとは思いますが使用は自己責任です</strong>  
                 </div>
             )}
 
