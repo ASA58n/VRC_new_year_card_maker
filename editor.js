@@ -1219,19 +1219,9 @@ const NewYearCardEditor = () => {
                         <li><a href="https://online.brother.co.jp/ot/nengajo/stamp/?page=1">brother 年賀状素材</a></li>
                         <li><a href="https://pepero-nenga.com/illust/nengajoo_illust_index.html">年賀状スープ 無料イラスト</a></li>
                     </ul>
-                    <button 
-                        onClick={() => setShowTutorial(false)}
-                        className="btn"
-                    >
-                        閉じる
-                    </button>
                 </div>
             )}
 
-            {/* 保存ボタン */}
-            <button className="btn btn-primary" style={{width: '100%', marginTop: '20px'}}>
-                保存する
-            </button>
         </div>
     );
 };
