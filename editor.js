@@ -346,6 +346,28 @@ const StampSelector = React.memo(({
     , []);
 
     // uploadedStampsのstateを削除し、直接propsを使用
+    const handleSelectStamp = (stamp) => {
+        const img = new Image();
+        img.onload = () => {
+            const maxSize = 200;
+            let width = stamp.originalSize ? stamp.originalSize.width / 3 : img.width / 3;
+            let height = stamp.originalSize ? stamp.originalSize.height / 3 : img.height / 3;
+            
+            if (width > maxSize || height > maxSize) {
+                const aspect = width / height;
+                if (width > height) {
+                    width = maxSize;
+                    height = width / aspect;
+                } else {
+                    height = maxSize;
+                    width = height * aspect;
+                }
+            }
+
+            onPreviewStamp(stamp.src, { width, height });
+        };
+        img.src = stamp.src;
+    };
 
     const handleFileUpload = (e) => {
         const file = e.target.files[0];
