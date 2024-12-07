@@ -329,7 +329,9 @@ const StampSelector = React.memo(({
     onCancelStamp, 
     onDeleteStamp,
     isPreviewMode, 
-    isEditing 
+    isEditing ,
+    uploadedStamps,
+    onUploadStamp
 }) => {
     const presetStampFiles = [
         'stamp_01.png',
@@ -363,7 +365,7 @@ const StampSelector = React.memo(({
                             height: img.height
                         }
                     };
-                    setUploadedStamps(prev => [...prev, stamp]);
+                    onUploadStamp(stamp);  // 親コンポーネントに通知
                 };
                 img.src = event.target.result;
             };
@@ -744,7 +746,7 @@ const NewYearCardEditor = () => {
 
     const [showLayoutControls, setShowLayoutControls] = React.useState(false);
     const [selectionArea, setSelectionArea] = React.useState(null);
-
+    const [uploadedStamps, setUploadedStamps] = React.useState([]);
     // 画像アップロード処理
     const handleImageUpload = (event) => {
         const file = event.target.files[0];
@@ -811,6 +813,11 @@ const NewYearCardEditor = () => {
         setSelectedStampIndex(null);
     };
 
+    // スタンプアップロード処理を追加
+    const handleUploadStamp = (stamp) => {
+        setUploadedStamps(prev => [...prev, stamp]);
+    };
+    
     const handleConfirmStamp = () => {
         if (previewStamp) {
             setStampElements(prev => [...prev, previewStamp]);
@@ -1145,6 +1152,8 @@ const NewYearCardEditor = () => {
                         onDeleteStamp={handleDeleteStamp}
                         isPreviewMode={!!previewStamp}
                         isEditing={selectedStampIndex !== null}
+                        uploadedStamps={uploadedStamps}     // 追加
+                        onUploadStamp={handleUploadStamp}   // 追加
                     />
                 </div>
             )}
