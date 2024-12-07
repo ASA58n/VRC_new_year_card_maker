@@ -448,6 +448,180 @@ const StampSelector = React.memo(({
         </div>
     );
 });
+// SelectionArea コンポーネント - 画像の選択範囲を制御
+const SelectionArea = ({ position, size, isVisible, onMove, onResize }) => {
+    const elementRef = React.useRef(null);
+    const [isDragging, setIsDragging] = React.useState(false);
+    const [isResizing, setIsResizing] = React.useState(false);
+    const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
+    const [startSize, setStartSize] = React.useState({ width: 0, height: 0 });
+    const [startPos, setStartPos] = React.useState({ x: 0, y: 0 });
+
+    // ドラッグ処理
+    const handleMouseDown = (e) => {
+        if (e.target.classList.contains('resize-handle')) {
+            return;
+        }
+        setIsDragging(true);
+        const rect = elementRef.current.getBoundingClientRect();
+        setDragOffset({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        });
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging && !isResizing) return;
+        
+        if (isDragging) {
+            const parentRect = elementRef.current.parentElement.getBoundingClientRect();
+            const x = e.clientX - parentRect.left - dragOffset.x;
+            const y = e.clientY - parentRect.top - dragOffset.y;
+            onMove({ x, y });
+        }
+
+        if (isResizing) {
+            const dx = e.clientX - startPos.x;
+            const dy = e.clientY - startPos.y;
+            onResize({
+                width: Math.max(100, startSize.width + dx),
+                height: Math.max(100, startSize.height + dy)
+            });
+        }
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+        setIsResizing(false);
+    };
+
+    // リサイズ処理
+    const handleResizeStart = (e) => {
+        e.stopPropagation();
+        setIsResizing(true);
+        setStartSize({ width: size.width, height: size.height });
+        setStartPos({ x: e.clientX, y: e.clientY });
+    };
+
+    React.useEffect(() => {
+        if (isDragging || isResizing) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging, isResizing]);
+
+    if (!isVisible) return null;
+
+    return (
+        <div
+            ref={elementRef}
+            style={{
+                position: 'absolute',
+                left: `${position.x}px`,
+                top: `${position.y}px`,
+                width: `${size.width}px`,
+                height: `${size.height}px`,
+                border: '2px solid #4a90e2',
+                cursor: isDragging ? 'grabbing' : 'grab',
+                backgroundColor: 'rgba(74, 144, 226, 0.1)',
+            }}
+            onMouseDown={handleMouseDown}
+        >
+            <div 
+                className="resize-handle"
+                style={{
+                    position: 'absolute',
+                    width: '10px',
+                    height: '10px',
+                    background: '#4a90e2',
+                    border: '1px solid white',
+                    borderRadius: '50%',
+                    bottom: '-5px',
+                    right: '-5px',
+                    cursor: 'se-resize',
+                }}
+                onMouseDown={handleResizeStart}
+            />
+        </div>
+    );
+};
+
+// 画像のダウンロード処理用のユーティリティ関数
+const downloadImage = async (originalImage, elements, selectionArea = null) => {
+    return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = () => {
+            // キャンバスのサイズを設定
+            let sx = 0, sy = 0, sWidth = img.width, sHeight = img.height;
+            let dx = 0, dy = 0, dWidth = img.width, dHeight = img.height;
+
+            if (selectionArea) {
+                // 選択範囲がある場合、その範囲に合わせる
+                const scaleX = img.width / originalImage.width;
+                const scaleY = img.height / originalImage.height;
+                
+                sx = selectionArea.position.x * scaleX;
+                sy = selectionArea.position.y * scaleY;
+                sWidth = selectionArea.size.width * scaleX;
+                sHeight = selectionArea.size.height * scaleY;
+                
+                canvas.width = sWidth;
+                canvas.height = sHeight;
+                dx = 0;
+                dy = 0;
+                dWidth = sWidth;
+                dHeight = sHeight;
+            } else {
+                // 選択範囲がない場合、元の画像サイズを使用
+                canvas.width = img.width;
+                canvas.height = img.height;
+            }
+
+            // 背景画像を描画
+            ctx.drawImage(img, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
+
+            // テキストとスタンプを描画
+            const scale = dWidth / originalImage.width;
+            elements.forEach(element => {
+                if (element.type === 'text') {
+                    ctx.font = `${parseInt(element.style.fontSize) * scale}px ${element.style.fontFamily.replace(/[']/g, '')}`;
+                    ctx.fillStyle = element.style.color;
+                    const x = (element.position.x - (selectionArea?.position.x || 0)) * scale;
+                    const y = (element.position.y - (selectionArea?.position.y || 0)) * scale + parseInt(element.style.fontSize) * scale;
+                    ctx.fillText(element.text, x, y);
+                } else if (element.type === 'stamp') {
+                    const stampImg = new Image();
+                    stampImg.onload = () => {
+                        const x = (element.position.x - (selectionArea?.position.x || 0)) * scale;
+                        const y = (element.position.y - (selectionArea?.position.y || 0)) * scale;
+                        const width = element.size.width * scale;
+                        const height = element.size.height * scale;
+                        ctx.drawImage(stampImg, x, y, width, height);
+                    };
+                    stampImg.src = element.src;
+                }
+            });
+
+            // 画像をダウンロード
+            setTimeout(() => {
+                const link = document.createElement('a');
+                link.download = 'newyear-card.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                resolve();
+            }, 500); // スタンプの読み込みを待つため少し遅延
+        };
+
+        img.src = originalImage.src;
+    });
+};
 // メインの NewYearCardEditor コンポーネント
 const NewYearCardEditor = () => {
     // 状態管理
@@ -485,6 +659,9 @@ const NewYearCardEditor = () => {
     const [stampElements, setStampElements] = React.useState([]);
     const [selectedStampIndex, setSelectedStampIndex] = React.useState(null);
     const [previewStamp, setPreviewStamp] = React.useState(null);
+
+    const [showLayoutControls, setShowLayoutControls] = React.useState(false);
+    const [selectionArea, setSelectionArea] = React.useState(null);
 
     // 画像アップロード処理
     const handleImageUpload = (event) => {
@@ -610,8 +787,61 @@ const NewYearCardEditor = () => {
         setShowAdjustments(tool === 'adjust');
         setShowTextControls(tool === 'text');
         setShowStampControls(tool === 'stamp');
+        setShowLayoutControls(tool === 'layout');
+        
+        // レイアウトツール以外を選択した時は選択範囲を非表示
+        if (tool !== 'layout') {
+            setSelectionArea(null);
+        }
     };
 
+    const handleInitSelection = () => {
+        if (!selectedImage) return;
+        
+        const imageElement = document.querySelector('.preview-image');
+        if (!imageElement) return;
+    
+        const rect = imageElement.getBoundingClientRect();
+        const parentRect = imageElement.parentElement.getBoundingClientRect();
+    
+        setSelectionArea({
+            position: {
+                x: (rect.left - parentRect.left) + 20,
+                y: (rect.top - parentRect.top) + 20
+            },
+            size: {
+                width: rect.width - 40,
+                height: rect.height - 40
+            }
+        });
+    };
+
+    // 画像のダウンロード処理
+    const handleDownload = async () => {
+        if (!selectedImage) return;
+    
+        const imageElement = document.querySelector('.preview-image');
+        if (!imageElement) return;
+    
+        // 全要素を配列にまとめる
+        const elements = [
+            ...textElements.map(element => ({
+                ...element,
+                type: 'text'
+            })),
+            ...stampElements.map(element => ({
+                ...element,
+                type: 'stamp'
+            }))
+        ];
+    
+        await downloadImage(
+            imageElement,
+            elements,
+            selectionArea
+        );
+    };
+    
     // 初期テキスト要素の選択
     React.useEffect(() => {
         if (textElements.length > 0) {
@@ -687,6 +917,20 @@ const NewYearCardEditor = () => {
                                     onResize={(size) => handleStampResize(null, size)}
                                 />
                             )}
+                            {/* 選択範囲 */}
+                            <SelectionArea
+                                position={selectionArea?.position || { x: 0, y: 0 }}
+                                size={selectionArea?.size || { width: 0, height: 0 }}
+                                isVisible={!!selectionArea}
+                                onMove={(newPosition) => setSelectionArea(prev => ({
+                                    ...prev,
+                                    position: newPosition
+                                }))}
+                                onResize={(newSize) => setSelectionArea(prev => ({
+                                    ...prev,
+                                    size: newSize
+                                }))}
+                            />
                         </div>
                     </>
                 ) : (
@@ -721,6 +965,12 @@ const NewYearCardEditor = () => {
                     onClick={() => handleToolbarClick('stamp')}
                 >
                     スタンプ
+                </button>
+                <button 
+                    className={`btn ${showLayoutControls ? 'btn-primary' : ''}`}
+                    onClick={() => handleToolbarClick('layout')}
+                >
+                    レイアウト
                 </button>
                 <button className="btn">レイアウト</button>
             </div>
@@ -847,6 +1097,27 @@ const NewYearCardEditor = () => {
                     >
                         リセット
                     </button>
+                </div>
+            )}
+
+            {/* レイアウトコントロールパネル */}
+            {showLayoutControls && selectedImage && (
+                <div className="control-panel">
+                    <div className="layout-controls">
+                        <button 
+                            className="btn btn-primary"
+                            onClick={handleInitSelection}
+                            style={{marginRight: '10px'}}
+                        >
+                            範囲選択
+                        </button>
+                        <button 
+                            className="btn"
+                            onClick={handleDownload}
+                        >
+                            ダウンロード
+                        </button>
+                    </div>
                 </div>
             )}
 
