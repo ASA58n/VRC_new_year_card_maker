@@ -321,7 +321,8 @@ const FontSelector = React.memo(({ selectedFont, onFontSelect }) => {
         </div>
     );
 });
-// StampSelector コンポーネント - スタンプ選択UI
+
+// StampSelector コンポーネント
 const StampSelector = React.memo(({ 
     onPreviewStamp, 
     onConfirmStamp, 
@@ -331,6 +332,26 @@ const StampSelector = React.memo(({
     isEditing 
 }) => {
     const [uploadedStamps, setUploadedStamps] = React.useState([]);
+    const [presetStamps, setPresetStamps] = React.useState([]);
+
+    // プリセットスタンプの読み込み
+    React.useEffect(() => {
+        // stamp ディレクトリ内のファイルを取得
+        fetch('/stamp')
+            .then(response => response.json())
+            .then(files => {
+                const stamps = files
+                    .filter(file => file.toLowerCase().endsWith('.png'))
+                    .map(file => ({
+                        id: file,
+                        src: `/stamp/${file}`
+                    }));
+                setPresetStamps(stamps);
+            })
+            .catch(error => {
+                console.error('スタンプの読み込みに失敗しました:', error);
+            });
+    }, []);
 
     // 画像アップロード処理
     const handleFileUpload = (e) => {
@@ -358,22 +379,26 @@ const StampSelector = React.memo(({
 
     // スタンプ選択処理
     const handleSelectStamp = (stamp) => {
-        const maxSize = 200;
-        let width = stamp.originalSize.width / 3;
-        let height = stamp.originalSize.height / 3;
-        
-        if (width > maxSize || height > maxSize) {
-            const aspect = width / height;
-            if (width > height) {
-                width = maxSize;
-                height = width / aspect;
-            } else {
-                height = maxSize;
-                width = height * aspect;
+        const img = new Image();
+        img.onload = () => {
+            const maxSize = 200;
+            let width = img.width / 3;
+            let height = img.height / 3;
+            
+            if (width > maxSize || height > maxSize) {
+                const aspect = width / height;
+                if (width > height) {
+                    width = maxSize;
+                    height = width / aspect;
+                } else {
+                    height = maxSize;
+                    width = height * aspect;
+                }
             }
-        }
 
-        onPreviewStamp(stamp.src, { width, height });
+            onPreviewStamp(stamp.src, { width, height });
+        };
+        img.src = stamp.src;
     };
 
     // プレビューモードまたは編集モード時のUI
@@ -413,7 +438,31 @@ const StampSelector = React.memo(({
     // 通常モードのUI（アップロード・スタンプ選択）
     return (
         <div className="stamp-selector">
+            {/* プリセットスタンプ */}
+            {presetStamps.length > 0 && (
+                <div className="preset-stamps">
+                    <h4>プリセットスタンプ</h4>
+                    <div className="stamp-grid">
+                        {presetStamps.map(stamp => (
+                            <div 
+                                key={stamp.id}
+                                className="stamp-item"
+                                onClick={() => handleSelectStamp(stamp)}
+                            >
+                                <img 
+                                    src={stamp.src} 
+                                    alt="プリセットスタンプ"
+                                    className="stamp-preview"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* カスタムスタンプアップロード */}
             <div className="stamp-upload">
+                <h4>カスタムスタンプ</h4>
                 <label className="upload-button">
                     <input
                         type="file"
@@ -448,6 +497,7 @@ const StampSelector = React.memo(({
         </div>
     );
 });
+
 // SelectionArea コンポーネント - 画像の選択範囲を制御
 const SelectionArea = ({ position, size, isVisible, onMove, onResize }) => {
     const elementRef = React.useRef(null);
