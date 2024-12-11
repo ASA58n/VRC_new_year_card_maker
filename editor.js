@@ -164,7 +164,7 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
     const [startSize, setStartSize] = React.useState({ width: 0, height: 0 });
     const [startPos, setStartPos] = React.useState({ x: 0, y: 0 });
 
-    // ドラッグ処理
+    // マウスでのドラッグ処理
     const handleMouseDown = (e) => {
         if (e.target.classList.contains('resize-handle')) {
             return;
@@ -177,7 +177,6 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
         });
         onDragStart();
         onSelect();
-        addDraggingClass();
     };
 
     const handleMouseMove = (e) => {
@@ -195,16 +194,14 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
             setIsDragging(false);
             onDragEnd();
         }
-        removeDraggingClass();
     };
 
-    // リサイズ処理
+    // マウスでのリサイズ処理
     const handleResizeStart = (e) => {
         e.stopPropagation();
         setIsResizing(true);
         setStartSize({ width: size.width, height: size.height });
         setStartPos({ x: e.clientX, y: e.clientY });
-        addDraggingClass();
     };
 
     const handleResizeMove = (e) => {
@@ -222,48 +219,6 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
 
     const handleResizeEnd = () => {
         setIsResizing(false);
-        removeDraggingClass();
-    };
-
-    // ドラッグ開始時にbodyにクラスを追加
-    const addDraggingClass = () => {
-        document.body.classList.add('dragging');
-    };
-
-    // ドラッグ終了時にbodyからクラスを削除
-    const removeDraggingClass = () => {
-        document.body.classList.remove('dragging');
-    };
-
-    // タッチでのリサイズ処理
-    const handleTouchResizeStart = (e) => {
-        e.stopPropagation();
-        const touch = e.touches[0];
-        setIsResizing(true);
-        setStartSize({ width: size.width, height: size.height });
-        setStartPos({ x: touch.clientX, y: touch.clientY });
-        addDraggingClass();
-    };
-
-    const handleTouchResizeMove = (e) => {
-        if (!isResizing) return;
-        const touch = e.touches[0];
-        const dx = touch.clientX - startPos.x;
-        const dy = touch.clientY - startPos.y;
-        const aspect = startSize.width / startSize.height;
-        
-        // 対角線の長さを使用してサイズを計算
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        const sign = dx + dy > 0 ? 1 : -1;
-        const newWidth = Math.max(30, startSize.width + (distance * sign));
-        const newHeight = newWidth / aspect;
-
-        onResize({ width: newWidth, height: newHeight });
-    };
-
-    const handleTouchResizeEnd = () => {
-        setIsResizing(false);
-        removeDraggingClass();
     };
 
     // タッチでのドラッグ処理
@@ -279,44 +234,78 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
         });
         onDragStart();
         onSelect();
-        addDraggingClass();
+        document.body.classList.add('dragging');
     };
 
     const handleTouchMove = (e) => {
-        if (!isDragging && !isResizing) return;
-        e.preventDefault(); // スクロールを防止
+        if (!isDragging) return;
+        e.preventDefault();
 
         const touch = e.touches[0];
-        if (isDragging) {
-            const parentRect = elementRef.current.parentElement.getBoundingClientRect();
-            const x = touch.clientX - parentRect.left - dragOffset.x;
-            const y = touch.clientY - parentRect.top - dragOffset.y;
-            onDrag({ x, y });
-        }
+        const parentRect = elementRef.current.parentElement.getBoundingClientRect();
+        const x = touch.clientX - parentRect.left - dragOffset.x;
+        const y = touch.clientY - parentRect.top - dragOffset.y;
+        onDrag({ x, y });
     };
 
     const handleTouchEnd = () => {
+        setIsDragging(false);
+        document.body.classList.remove('dragging');
         if (isDragging) {
-            setIsDragging(false);
             onDragEnd();
         }
-        removeDraggingClass();
     };
-    
+
+    // タッチでのリサイズ処理
+    const handleTouchResizeStart = (e) => {
+        e.stopPropagation();
+        const touch = e.touches[0];
+        setIsResizing(true);
+        setStartSize({ width: size.width, height: size.height });
+        setStartPos({ x: touch.clientX, y: touch.clientY });
+        document.body.classList.add('dragging');
+    };
+
+    const handleTouchResizeMove = (e) => {
+        if (!isResizing) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        const dx = touch.clientX - startPos.x;
+        const dy = touch.clientY - startPos.y;
+        const aspect = startSize.width / startSize.height;
+        
+        const newWidth = Math.max(30, startSize.width + dx);
+        const newHeight = newWidth / aspect;
+
+        onResize({ width: newWidth, height: newHeight });
+    };
+
+    const handleTouchResizeEnd = () => {
+        setIsResizing(false);
+        document.body.classList.remove('dragging');
+    };
+
     React.useEffect(() => {
-        if (isDragging || isResizing) {
-            // マウスイベントのリスナー
-            window.addEventListener('mousemove', isDragging ? handleMouseMove : handleResizeMove);
-            window.addEventListener('mouseup', isDragging ? handleMouseUp : handleResizeEnd);
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        if (isResizing) {
+            window.addEventListener('mousemove', handleResizeMove);
+            window.addEventListener('mouseup', handleResizeEnd);
         }
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
             window.removeEventListener('mousemove', handleResizeMove);
             window.removeEventListener('mouseup', handleResizeEnd);
-            removeDraggingClass();
+            document.body.classList.remove('dragging');
         };
     }, [isDragging, isResizing]);
+
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const handleSize = isMobile ? 30 : 10;
+    const handleOffset = isMobile ? -15 : -5;
 
     return (
         <div
@@ -332,6 +321,7 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
                 position: 'absolute',
                 touchAction: 'none'
             }}
+            onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -351,16 +341,17 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
                     className="resize-handle"
                     style={{
                         position: 'absolute',
-                        width: '30px', // スマートフォン用に大きくする
-                        height: '30px',
+                        width: `${handleSize}px`,
+                        height: `${handleSize}px`,
                         background: '#4a90e2',
-                        border: '2px solid white',
+                        border: isMobile ? '2px solid white' : '1px solid white',
                         borderRadius: '50%',
-                        bottom: '-15px',
-                        right: '-15px',
+                        bottom: `${handleOffset}px`,
+                        right: `${handleOffset}px`,
                         cursor: 'se-resize',
                         touchAction: 'none'
                     }}
+                    onMouseDown={handleResizeStart}
                     onTouchStart={handleTouchResizeStart}
                     onTouchMove={handleTouchResizeMove}
                     onTouchEnd={handleTouchResizeEnd}
