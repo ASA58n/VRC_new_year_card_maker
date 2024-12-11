@@ -177,6 +177,7 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
         });
         onDragStart();
         onSelect();
+        addDraggingClass();
     };
 
     const handleMouseMove = (e) => {
@@ -194,6 +195,7 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
             setIsDragging(false);
             onDragEnd();
         }
+        removeDraggingClass();
     };
 
     // リサイズ処理
@@ -202,6 +204,7 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
         setIsResizing(true);
         setStartSize({ width: size.width, height: size.height });
         setStartPos({ x: e.clientX, y: e.clientY });
+        addDraggingClass();
     };
 
     const handleResizeMove = (e) => {
@@ -219,10 +222,54 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
 
     const handleResizeEnd = () => {
         setIsResizing(false);
+        removeDraggingClass();
     };
 
+    // ドラッグ開始時にbodyにクラスを追加
+    const addDraggingClass = () => {
+        document.body.classList.add('dragging');
+    };
+
+    // ドラッグ終了時にbodyからクラスを削除
+    const removeDraggingClass = () => {
+        document.body.classList.remove('dragging');
+    };
+
+    // タッチでのリサイズ処理
+    const handleTouchResizeStart = (e) => {
+        e.stopPropagation();
+        const touch = e.touches[0];
+        setIsResizing(true);
+        setStartSize({ width: size.width, height: size.height });
+        setStartPos({ x: touch.clientX, y: touch.clientY });
+        addDraggingClass();
+    };
+
+    const handleTouchResizeMove = (e) => {
+        if (!isResizing) return;
+        const touch = e.touches[0];
+        const dx = touch.clientX - startPos.x;
+        const dy = touch.clientY - startPos.y;
+        const aspect = startSize.width / startSize.height;
+        
+        // 対角線の長さを使用してサイズを計算
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const sign = dx + dy > 0 ? 1 : -1;
+        const newWidth = Math.max(30, startSize.width + (distance * sign));
+        const newHeight = newWidth / aspect;
+
+        onResize({ width: newWidth, height: newHeight });
+    };
+
+    const handleTouchResizeEnd = () => {
+        setIsResizing(false);
+        removeDraggingClass();
+    };
+
+    // タッチでのドラッグ処理
     const handleTouchStart = (e) => {
-        e.preventDefault();
+        if (e.target.classList.contains('resize-handle')) return;
+        
         const touch = e.touches[0];
         setIsDragging(true);
         const rect = elementRef.current.getBoundingClientRect();
@@ -232,38 +279,42 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
         });
         onDragStart();
         onSelect();
+        addDraggingClass();
     };
-    
+
     const handleTouchMove = (e) => {
-        if (!isDragging) return;
+        if (!isDragging && !isResizing) return;
+        e.preventDefault(); // スクロールを防止
+
         const touch = e.touches[0];
-        const parentRect = elementRef.current.parentElement.getBoundingClientRect();
-        const x = touch.clientX - parentRect.left - dragOffset.x;
-        const y = touch.clientY - parentRect.top - dragOffset.y;
-        onDrag({ x, y });
+        if (isDragging) {
+            const parentRect = elementRef.current.parentElement.getBoundingClientRect();
+            const x = touch.clientX - parentRect.left - dragOffset.x;
+            const y = touch.clientY - parentRect.top - dragOffset.y;
+            onDrag({ x, y });
+        }
     };
-    
+
     const handleTouchEnd = () => {
         if (isDragging) {
             setIsDragging(false);
             onDragEnd();
         }
+        removeDraggingClass();
     };
-
+    
     React.useEffect(() => {
-        if (isDragging) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
-        }
-        if (isResizing) {
-            window.addEventListener('mousemove', handleResizeMove);
-            window.addEventListener('mouseup', handleResizeEnd);
+        if (isDragging || isResizing) {
+            // マウスイベントのリスナー
+            window.addEventListener('mousemove', isDragging ? handleMouseMove : handleResizeMove);
+            window.addEventListener('mouseup', isDragging ? handleMouseUp : handleResizeEnd);
         }
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
             window.removeEventListener('mousemove', handleResizeMove);
             window.removeEventListener('mouseup', handleResizeEnd);
+            removeDraggingClass();
         };
     }, [isDragging, isResizing]);
 
@@ -278,9 +329,9 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
                 width: `${size.width}px`,
                 height: `${size.height}px`,
                 cursor: isDragging ? 'grabbing' : 'grab',
-                position: 'absolute'
+                position: 'absolute',
+                touchAction: 'none'
             }}
-            onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -298,7 +349,21 @@ const StampElement = ({ src, style, position, size, isSelected, onSelect, onDrag
             {isSelected && (
                 <div 
                     className="resize-handle"
-                    onMouseDown={handleResizeStart}
+                    style={{
+                        position: 'absolute',
+                        width: '30px', // スマートフォン用に大きくする
+                        height: '30px',
+                        background: '#4a90e2',
+                        border: '2px solid white',
+                        borderRadius: '50%',
+                        bottom: '-15px',
+                        right: '-15px',
+                        cursor: 'se-resize',
+                        touchAction: 'none'
+                    }}
+                    onTouchStart={handleTouchResizeStart}
+                    onTouchMove={handleTouchResizeMove}
+                    onTouchEnd={handleTouchResizeEnd}
                 />
             )}
         </div>
