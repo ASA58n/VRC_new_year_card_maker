@@ -437,24 +437,69 @@
         }
         // スマホ対応
         @media (max-width: 768px) {
-            /* 基本レイアウト */
-            .editor-container {
-                max-width: 100%;
-                margin: 10px;
+            body {
+                /* ボディのスクロールを許可 */
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
                 padding: 10px;
             }
         
+            .editor-container {
+                /* 固定位置を解除 */
+                position: relative;
+                height: auto;
+                overflow: visible;
+            }
+        
+            .editor-main {
+                /* メインエリアの調整 */
+                min-height: 250px;
+                overflow: visible;
+                touch-action: auto;
+            }
+        
+            .control-panel {
+                /* コントロールパネルの調整 */
+                position: relative;
+                max-height: none;
+                overflow: visible;
+            }
+        
+            /* 操作要素のみtouch-action: noneを適用 */
+            .text-element,
+            .stamp-element,
+            .resize-handle {
+                touch-action: none;
+            }
+        
+            /* その他の要素はスクロールを許可 */
+            .font-selection-panel,
+            .tutorial {
+                touch-action: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+        
+            /* 入力要素の調整 */
+            input[type="text"],
+            input[type="range"],
+            input[type="color"],
+            button {
+                touch-action: auto;
+            }
+        
+            /* ツールバーの調整 */
+            .toolbar {
+                position: sticky;
+                top: 0;
+                background: white;
+                z-index: 1000;
+                padding: 10px;
+            }
+            
             /* ヘッダー */
             .header h1 {
                 font-size: 1.8em;
             }
-        
-            /* エディターメイン */
-            .editor-main {
-                padding: 10px;
-                min-height: 300px;
-            }
-        
             /* ツールバー */
             .toolbar {
                 grid-template-columns: repeat(2, 1fr);
@@ -465,14 +510,6 @@
                 padding: 12px 8px;
                 font-size: 14px;
                 min-height: 44px;
-            }
-        
-            /* コントロールパネル */
-            .control-panel {
-                padding: 10px;
-                margin-top: 10px;
-                max-height: 40vh;
-                overflow-y: auto;
             }
         
             /* フォントセレクター */
