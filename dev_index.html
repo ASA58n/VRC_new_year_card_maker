@@ -49,6 +49,13 @@
             margin: 0;
             padding: 20px;
         }
+
+        /* スタンプ操作中のスクロール防止 */
+        body.dragging {
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+        }
         
         /* ベーススタイル */
         .editor-container {
@@ -69,6 +76,7 @@
             margin-bottom: 20px;
             background: linear-gradient(135deg, #fff 97%, #aa1809 97%);
             position: relative;
+            touch-action: none; /* エディター領域内でのスクロールを防止 */
         }
 
         .preview-image {
