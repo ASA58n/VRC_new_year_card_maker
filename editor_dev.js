@@ -1,69 +1,74 @@
-// TextElement コンポーネント - タッチ対応版
+// TextElement コンポーネント - ドラッグ可能なテキスト要素
 const TextElement = ({ text, style, position, isSelected, onSelect, onDragStart, onDrag, onDragEnd }) => {
     const elementRef = React.useRef(null);
     const [isDragging, setIsDragging] = React.useState(false);
     const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
 
-    const handleStart = (clientX, clientY) => {
+    const handleMouseDown = (e) => {
         setIsDragging(true);
         const rect = elementRef.current.getBoundingClientRect();
         setDragOffset({
-            x: clientX - rect.left,
-            y: clientY - rect.top
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
         });
         onDragStart();
         onSelect();
     };
 
-    const handleMove = (clientX, clientY) => {
+    const handleMouseMove = (e) => {
         if (!isDragging) return;
+        
         const parentRect = elementRef.current.parentElement.getBoundingClientRect();
-        const x = clientX - parentRect.left - dragOffset.x;
-        const y = clientY - parentRect.top - dragOffset.y;
+        const x = e.clientX - parentRect.left - dragOffset.x;
+        const y = e.clientY - parentRect.top - dragOffset.y;
+        
         onDrag({ x, y });
     };
 
-    const handleEnd = () => {
+    const handleMouseUp = () => {
         if (isDragging) {
             setIsDragging(false);
             onDragEnd();
         }
     };
 
-    // マウスイベントハンドラ
-    const handleMouseDown = (e) => {
-        handleStart(e.clientX, e.clientY);
-    };
-
-    const handleMouseMove = (e) => {
-        handleMove(e.clientX, e.clientY);
-    };
-
-    // タッチイベントハンドラ
     const handleTouchStart = (e) => {
         e.preventDefault();
         const touch = e.touches[0];
-        handleStart(touch.clientX, touch.clientY);
+        setIsDragging(true);
+        const rect = elementRef.current.getBoundingClientRect();
+        setDragOffset({
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top
+        });
+        onDragStart();
+        onSelect();
     };
-
+    
     const handleTouchMove = (e) => {
-        e.preventDefault();
+        if (!isDragging) return;
         const touch = e.touches[0];
-        handleMove(touch.clientX, touch.clientY);
+        const parentRect = elementRef.current.parentElement.getBoundingClientRect();
+        const x = touch.clientX - parentRect.left - dragOffset.x;
+        const y = touch.clientY - parentRect.top - dragOffset.y;
+        onDrag({ x, y });
     };
-
+    
+    const handleTouchEnd = () => {
+        if (isDragging) {
+            setIsDragging(false);
+            onDragEnd();
+        }
+    };
+    
     React.useEffect(() => {
         if (isDragging) {
             window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleEnd);
-            window.addEventListener('touchmove', handleTouchMove, { passive: false });
-            window.addEventListener('touchend', handleEnd);
+            window.addEventListener('mouseup', handleMouseUp);
         }
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleEnd);
-            window.removeEventListener('touchmove', handleTouchMove);
-            window.removeEventListener('touchend', handleEnd);
+            window.removeEventListener('mouseup', handleMouseUp);
         };
     }, [isDragging]);
 
@@ -75,18 +80,19 @@ const TextElement = ({ text, style, position, isSelected, onSelect, onDragStart,
                 ...style,
                 left: `${position.x}px`,
                 top: `${position.y}px`,
-                cursor: isDragging ? 'grabbing' : 'grab',
-                touchAction: 'none'
+                cursor: isDragging ? 'grabbing' : 'grab'
             }}
             onMouseDown={handleMouseDown}
             onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
         >
             {text}
         </div>
     );
 };
 
-// RangeSlider コンポーネント - モバイル対応版
+// RangeSlider コンポーネント - 画像調整用スライダー
 const RangeSlider = ({ label, value, onChange, min = 0, max = 200 }) => {
     return (
         <div className="adjustment-control">
@@ -99,557 +105,14 @@ const RangeSlider = ({ label, value, onChange, min = 0, max = 200 }) => {
                     max={max}
                     value={value}
                     onChange={e => onChange(parseInt(e.target.value))}
-                    style={{ touchAction: 'none' }}
                 />
                 <div className="value-display">{value}%</div>
             </div>
         </div>
     );
 };
-// StampElement コンポーネント - タッチ対応版
-const StampElement = ({ src, style, position, size, isSelected, onSelect, onDragStart, onDrag, onDragEnd, onResize }) => {
-    const elementRef = React.useRef(null);
-    const [isDragging, setIsDragging] = React.useState(false);
-    const [isResizing, setIsResizing] = React.useState(false);
-    const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
-    const [startSize, setStartSize] = React.useState({ width: 0, height: 0 });
-    const [startPos, setStartPos] = React.useState({ x: 0, y: 0 });
 
-    // 汎用的なドラッグ開始ハンドラ
-    const handleDragStart = (clientX, clientY) => {
-        setIsDragging(true);
-        const rect = elementRef.current.getBoundingClientRect();
-        setDragOffset({
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        });
-        onDragStart();
-        onSelect();
-    };
-
-    // 汎用的な移動ハンドラ
-    const handleMove = (clientX, clientY) => {
-        if (!isDragging && !isResizing) return;
-        
-        if (isDragging) {
-            const parentRect = elementRef.current.parentElement.getBoundingClientRect();
-            const x = clientX - parentRect.left - dragOffset.x;
-            const y = clientY - parentRect.top - dragOffset.y;
-            onDrag({ x, y });
-        }
-
-        if (isResizing) {
-            const dx = clientX - startPos.x;
-            const dy = clientY - startPos.y;
-            const aspect = startSize.width / startSize.height;
-            const newWidth = Math.max(30, startSize.width + dx);
-            const newHeight = newWidth / aspect;
-            onResize({ width: newWidth, height: newHeight });
-        }
-    };
-
-    // マウスイベントハンドラ
-    const handleMouseDown = (e) => {
-        if (e.target.classList.contains('resize-handle')) return;
-        handleDragStart(e.clientX, e.clientY);
-    };
-
-    const handleMouseMove = (e) => {
-        handleMove(e.clientX, e.clientY);
-    };
-
-    // タッチイベントハンドラ
-    const handleTouchStart = (e) => {
-        if (e.target.classList.contains('resize-handle')) return;
-        e.preventDefault();
-        const touch = e.touches[0];
-        handleDragStart(touch.clientX, touch.clientY);
-    };
-
-    const handleTouchMove = (e) => {
-        e.preventDefault();
-        const touch = e.touches[0];
-        handleMove(touch.clientX, touch.clientY);
-    };
-
-    // リサイズハンドラ
-    const handleResizeStart = (clientX, clientY) => {
-        setIsResizing(true);
-        setStartSize({ width: size.width, height: size.height });
-        setStartPos({ x: clientX, y: clientY });
-    };
-
-    const handleResizeMouseDown = (e) => {
-        e.stopPropagation();
-        handleResizeStart(e.clientX, e.clientY);
-    };
-
-    const handleResizeTouchStart = (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        const touch = e.touches[0];
-        handleResizeStart(touch.clientX, touch.clientY);
-    };
-
-    const handleEnd = () => {
-        if (isDragging) {
-            setIsDragging(false);
-            onDragEnd();
-        }
-        setIsResizing(false);
-    };
-
-    React.useEffect(() => {
-        if (isDragging || isResizing) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleEnd);
-            window.addEventListener('touchmove', handleTouchMove, { passive: false });
-            window.addEventListener('touchend', handleEnd);
-        }
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleEnd);
-            window.removeEventListener('touchmove', handleTouchMove);
-            window.removeEventListener('touchend', handleEnd);
-        };
-    }, [isDragging, isResizing]);
-
-    return (
-        <div
-            ref={elementRef}
-            className={`stamp-element ${isSelected ? 'selected' : ''}`}
-            style={{
-                ...style,
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-                width: `${size.width}px`,
-                height: `${size.height}px`,
-                cursor: isDragging ? 'grabbing' : 'grab',
-                position: 'absolute',
-                touchAction: 'none'
-            }}
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-        >
-            <img 
-                src={src} 
-                alt="スタンプ"
-                style={{ 
-                    width: '100%',
-                    height: '100%',
-                    pointerEvents: 'none',
-                    userSelect: 'none'
-                }}
-            />
-            {isSelected && (
-                <div 
-                    className="resize-handle"
-                    style={{
-                        width: '24px',
-                        height: '24px',
-                        bottom: '-12px',
-                        right: '-12px'
-                    }}
-                    onMouseDown={handleResizeMouseDown}
-                    onTouchStart={handleResizeTouchStart}
-                />
-            )}
-        </div>
-    );
-};
-
-// StampSelector コンポーネント - モバイル対応版
-const StampSelector = React.memo(({ 
-    onPreviewStamp, 
-    onConfirmStamp, 
-    onCancelStamp, 
-    onDeleteStamp,
-    isPreviewMode, 
-    isEditing,
-    uploadedStamps,
-    onUploadStamp
-}) => {
-    const presetStampFiles = [
-        'stamp_01.png',
-        'stamp_02.png',
-    ];
-    
-    const presetStamps = React.useMemo(() => 
-        presetStampFiles.map(file => ({
-            id: file,
-            src: `./stamp/${file}`
-        }))
-    , []);
-
-    const handleSelectStamp = (stamp) => {
-        const img = new Image();
-        img.onload = () => {
-            const maxSize = 200;
-            let width = stamp.originalSize ? stamp.originalSize.width / 3 : img.width / 3;
-            let height = stamp.originalSize ? stamp.originalSize.height / 3 : img.height / 3;
-            
-            if (width > maxSize || height > maxSize) {
-                const aspect = width / height;
-                if (width > height) {
-                    width = maxSize;
-                    height = width / aspect;
-                } else {
-                    height = maxSize;
-                    width = height * aspect;
-                }
-            }
-            onPreviewStamp(stamp.src, { width, height });
-        };
-        img.src = stamp.src;
-    };
-
-    const handleFileUpload = (e) => {
-        const file = e.target.files[0];
-        if (file && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                    const stamp = {
-                        id: Date.now(),
-                        src: event.target.result,
-                        originalSize: {
-                            width: img.width,
-                            height: img.height
-                        }
-                    };
-                    onUploadStamp(stamp);
-                };
-                img.src = event.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-    };
-
-    if (isPreviewMode || isEditing) {
-        return (
-            <div className="stamp-selector">
-                <h4>{isEditing ? 'スタンプの編集' : 'スタンプを配置'}</h4>
-                <p>画像上の好きな位置にドラッグして配置し、サイズを調整してください</p>
-                <div className="preview-actions">
-                    <button 
-                        className="btn btn-primary"
-                        onClick={onConfirmStamp}
-                        style={{marginRight: '10px'}}
-                    >
-                        確定
-                    </button>
-                    {isEditing && (
-                        <button 
-                            className="btn btn-danger"
-                            onClick={onDeleteStamp}
-                            style={{marginRight: '10px'}}
-                        >
-                            削除
-                        </button>
-                    )}
-                    <button 
-                        className="btn"
-                        onClick={onCancelStamp}
-                    >
-                        キャンセル
-                    </button>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="stamp-selector">
-            {presetStamps.length > 0 && (
-                <div className="preset-stamps">
-                    <h4>プリセットスタンプ</h4>
-                    <div className="stamp-grid">
-                        {presetStamps.map(stamp => (
-                            <div 
-                                key={stamp.id}
-                                className="stamp-item"
-                                onClick={() => handleSelectStamp(stamp)}
-                            >
-                                <img 
-                                    src={stamp.src} 
-                                    alt="プリセットスタンプ"
-                                    className="stamp-preview"
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            <div className="stamp-upload">
-                <h4>カスタムスタンプ</h4>
-                <label className="upload-button">
-                    <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        style={{ display: 'none' }}
-                    />
-                    画像をアップロード
-                </label>
-            </div>
-            
-            {uploadedStamps.length > 0 && (
-                <div className="uploaded-stamps">
-                    <h4>アップロードした画像</h4>
-                    <div className="stamp-grid">
-                        {uploadedStamps.map(stamp => (
-                            <div 
-                                key={stamp.id}
-                                className="stamp-item"
-                                onClick={() => handleSelectStamp(stamp)}
-                            >
-                                <img 
-                                    src={stamp.src} 
-                                    alt="アップロードした画像"
-                                    className="stamp-preview"
-                                />
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-});
-// SelectionArea コンポーネント - タッチ対応版
-const SelectionArea = ({ position, size, isVisible, onMove, onResize }) => {
-    const elementRef = React.useRef(null);
-    const [isDragging, setIsDragging] = React.useState(false);
-    const [isResizing, setIsResizing] = React.useState(false);
-    const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
-    const [startSize, setStartSize] = React.useState({ width: 0, height: 0 });
-    const [startPos, setStartPos] = React.useState({ x: 0, y: 0 });
-
-    // 汎用的なドラッグ開始ハンドラ
-    const handleStart = (clientX, clientY) => {
-        setIsDragging(true);
-        const rect = elementRef.current.getBoundingClientRect();
-        setDragOffset({
-            x: clientX - rect.left,
-            y: clientY - rect.top
-        });
-    };
-
-    // 汎用的な移動ハンドラ
-    const handleMove = (clientX, clientY) => {
-        if (!isDragging && !isResizing) return;
-        
-        if (isDragging) {
-            const parentRect = elementRef.current.parentElement.getBoundingClientRect();
-            const x = clientX - parentRect.left - dragOffset.x;
-            const y = clientY - parentRect.top - dragOffset.y;
-            onMove({ x, y });
-        }
-
-        if (isResizing) {
-            const dx = clientX - startPos.x;
-            const dy = clientY - startPos.y;
-            onResize({
-                width: Math.max(100, startSize.width + dx),
-                height: Math.max(100, startSize.height + dy)
-            });
-        }
-    };
-
-    // マウスイベントハンドラ
-    const handleMouseDown = (e) => {
-        if (e.target.classList.contains('resize-handle')) return;
-        handleStart(e.clientX, e.clientY);
-    };
-
-    const handleMouseMove = (e) => {
-        handleMove(e.clientX, e.clientY);
-    };
-
-    // タッチイベントハンドラ
-    const handleTouchStart = (e) => {
-        if (e.target.classList.contains('resize-handle')) return;
-        e.preventDefault();
-        const touch = e.touches[0];
-        handleStart(touch.clientX, touch.clientY);
-    };
-
-    const handleTouchMove = (e) => {
-        e.preventDefault();
-        const touch = e.touches[0];
-        handleMove(touch.clientX, touch.clientY);
-    };
-
-    // リサイズハンドラ
-    const handleResizeStart = (clientX, clientY) => {
-        setIsResizing(true);
-        setStartSize({ width: size.width, height: size.height });
-        setStartPos({ x: clientX, y: clientY });
-    };
-
-    const handleResizeMouseDown = (e) => {
-        e.stopPropagation();
-        handleResizeStart(e.clientX, e.clientY);
-    };
-
-    const handleResizeTouchStart = (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        const touch = e.touches[0];
-        handleResizeStart(touch.clientX, touch.clientY);
-    };
-
-    const handleEnd = () => {
-        setIsDragging(false);
-        setIsResizing(false);
-    };
-
-    React.useEffect(() => {
-        if (isDragging || isResizing) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleEnd);
-            window.addEventListener('touchmove', handleTouchMove, { passive: false });
-            window.addEventListener('touchend', handleEnd);
-        }
-        return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleEnd);
-            window.removeEventListener('touchmove', handleTouchMove);
-            window.removeEventListener('touchend', handleEnd);
-        };
-    }, [isDragging, isResizing]);
-
-    if (!isVisible) return null;
-
-    return (
-        <div
-            ref={elementRef}
-            style={{
-                position: 'absolute',
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-                width: `${size.width}px`,
-                height: `${size.height}px`,
-                border: '2px solid #4a90e2',
-                cursor: isDragging ? 'grabbing' : 'grab',
-                backgroundColor: 'rgba(74, 144, 226, 0.1)',
-                touchAction: 'none'
-            }}
-            onMouseDown={handleMouseDown}
-            onTouchStart={handleTouchStart}
-        >
-            <div 
-                className="resize-handle"
-                style={{
-                    position: 'absolute',
-                    width: '24px',
-                    height: '24px',
-                    background: '#4a90e2',
-                    border: '2px solid white',
-                    borderRadius: '50%',
-                    bottom: '-12px',
-                    right: '-12px',
-                    cursor: 'se-resize',
-                    touchAction: 'none'
-                }}
-                onMouseDown={handleResizeMouseDown}
-                onTouchStart={handleResizeTouchStart}
-            />
-        </div>
-    );
-};
-
-// FontSelector コンポーネント - モバイル対応版
-const FontSelector = React.memo(({ selectedFont, onFontSelect }) => {
-    const [isExpanded, setIsExpanded] = React.useState(false);
-    
-    const categories = [
-        {
-            id: 'japanese',
-            name: '和文フォント',
-            fonts: fonts.filter(f => 
-                ['明朝体', 'ゴシック体', '毛筆体', '春の海明朝', '丸ゴシック', 'クレナイド']
-                .includes(f.name)
-            )
-        },
-        {
-            id: 'design',
-            name: 'デザインフォント',
-            fonts: fonts.filter(f => 
-                ['モノマニアック', 'ガムジャ']
-                .includes(f.name)
-            )
-        }
-    ];
-
-    const selectedFontInfo = fonts.find(f => f.value === selectedFont);
-
-    // タッチイベント用のハンドラ
-    const handleTouchStart = (e) => {
-        // モバイルでダブルタップによるズームを防止
-        e.preventDefault();
-    };
-
-    return (
-        <div className="font-selector">
-            <div className="font-preview">
-                <label>フォント</label>
-                <div 
-                    className="current-font-sample"
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    onTouchStart={handleTouchStart}
-                >
-                    <span 
-                        className="sample-text"
-                        style={{ fontFamily: selectedFontInfo.value }}
-                    >
-                        {selectedFontInfo.sample}
-                    </span>
-                    <div className="preview-footer">
-                        <span className="font-name">{selectedFontInfo.name}</span>
-                        <span className="expand-icon">
-                            {isExpanded ? '▼' : '▶'}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            {isExpanded && (
-                <div className="font-selection-panel">
-                    {categories.map(category => (
-                        <div key={category.id} className="font-category">
-                            <h4 className="category-title">{category.name}</h4>
-                            <div className="font-samples">
-                                {category.fonts.map(font => (
-                                    <div 
-                                        key={font.value}
-                                        className={`font-sample ${selectedFont === font.value ? 'selected' : ''}`}
-                                        onClick={() => {
-                                            onFontSelect(font.value);
-                                            setIsExpanded(false);
-                                        }}
-                                        onTouchStart={handleTouchStart}
-                                    >
-                                        <span 
-                                            className="sample-text"
-                                            style={{ fontFamily: font.value }}
-                                        >
-                                            {font.sample}
-                                        </span>
-                                        <span className="font-name">{font.name}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-});
-// フォント設定（変更なし）
+// フォント設定
 const fonts = [
     { 
         name: '明朝体',
@@ -692,10 +155,651 @@ const fonts = [
         sample: '새해 복 많이 받으세요'
     }
 ];
+// StampElement コンポーネント - ドラッグ＆リサイズ可能なスタンプ要素
+const StampElement = ({ src, style, position, size, isSelected, onSelect, onDragStart, onDrag, onDragEnd, onResize }) => {
+    const elementRef = React.useRef(null);
+    const [isDragging, setIsDragging] = React.useState(false);
+    const [isResizing, setIsResizing] = React.useState(false);
+    const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
+    const [startSize, setStartSize] = React.useState({ width: 0, height: 0 });
+    const [startPos, setStartPos] = React.useState({ x: 0, y: 0 });
+
+    // ドラッグ処理
+    const handleMouseDown = (e) => {
+        if (e.target.classList.contains('resize-handle')) {
+            return;
+        }
+        setIsDragging(true);
+        const rect = elementRef.current.getBoundingClientRect();
+        setDragOffset({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        });
+        onDragStart();
+        onSelect();
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging) return;
+        
+        const parentRect = elementRef.current.parentElement.getBoundingClientRect();
+        const x = e.clientX - parentRect.left - dragOffset.x;
+        const y = e.clientY - parentRect.top - dragOffset.y;
+        
+        onDrag({ x, y });
+    };
+
+    const handleMouseUp = () => {
+        if (isDragging) {
+            setIsDragging(false);
+            onDragEnd();
+        }
+    };
+
+    // リサイズ処理
+    const handleResizeStart = (e) => {
+        e.stopPropagation();
+        setIsResizing(true);
+        setStartSize({ width: size.width, height: size.height });
+        setStartPos({ x: e.clientX, y: e.clientY });
+    };
+
+    const handleResizeMove = (e) => {
+        if (!isResizing) return;
+
+        const dx = e.clientX - startPos.x;
+        const dy = e.clientY - startPos.y;
+        const aspect = startSize.width / startSize.height;
+        
+        const newWidth = Math.max(30, startSize.width + dx);
+        const newHeight = newWidth / aspect;
+
+        onResize({ width: newWidth, height: newHeight });
+    };
+
+    const handleResizeEnd = () => {
+        setIsResizing(false);
+    };
+
+    const handleTouchStart = (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        setIsDragging(true);
+        const rect = elementRef.current.getBoundingClientRect();
+        setDragOffset({
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top
+        });
+        onDragStart();
+        onSelect();
+    };
+    
+    const handleTouchMove = (e) => {
+        if (!isDragging) return;
+        const touch = e.touches[0];
+        const parentRect = elementRef.current.parentElement.getBoundingClientRect();
+        const x = touch.clientX - parentRect.left - dragOffset.x;
+        const y = touch.clientY - parentRect.top - dragOffset.y;
+        onDrag({ x, y });
+    };
+    
+    const handleTouchEnd = () => {
+        if (isDragging) {
+            setIsDragging(false);
+            onDragEnd();
+        }
+    };
+
+    React.useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        if (isResizing) {
+            window.addEventListener('mousemove', handleResizeMove);
+            window.addEventListener('mouseup', handleResizeEnd);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener('mousemove', handleResizeMove);
+            window.removeEventListener('mouseup', handleResizeEnd);
+        };
+    }, [isDragging, isResizing]);
+
+    return (
+        <div
+            ref={elementRef}
+            className={`stamp-element ${isSelected ? 'selected' : ''}`}
+            style={{
+                ...style,
+                left: `${position.x}px`,
+                top: `${position.y}px`,
+                width: `${size.width}px`,
+                height: `${size.height}px`,
+                cursor: isDragging ? 'grabbing' : 'grab',
+                position: 'absolute'
+            }}
+            onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+        >
+            <img 
+                src={src} 
+                alt="スタンプ"
+                style={{ 
+                    width: '100%',
+                    height: '100%',
+                    pointerEvents: 'none',
+                    userSelect: 'none'
+                }}
+            />
+            {isSelected && (
+                <div 
+                    className="resize-handle"
+                    onMouseDown={handleResizeStart}
+                />
+            )}
+        </div>
+    );
+};
+// FontSelector コンポーネント - フォント選択UI
+const FontSelector = React.memo(({ selectedFont, onFontSelect }) => {
+    const [isExpanded, setIsExpanded] = React.useState(false);
+    
+    const categories = [
+        {
+            id: 'japanese',
+            name: '和文フォント',
+            fonts: fonts.filter(f => 
+                ['明朝体', 'ゴシック体', '毛筆体', '春の海明朝', '丸ゴシック', 'クレナイド']
+                .includes(f.name)
+            )
+        },
+        {
+            id: 'design',
+            name: 'デザインフォント',
+            fonts: fonts.filter(f => 
+                ['モノマニアック', 'ガムジャ']
+                .includes(f.name)
+            )
+        }
+    ];
+
+    // 現在選択されているフォントの情報を取得
+    const selectedFontInfo = fonts.find(f => f.value === selectedFont);
+
+    return (
+        <div className="font-selector">
+            <div className="font-preview">
+                <label>フォント</label>
+                <div 
+                    className="current-font-sample"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                >
+                    <span 
+                        className="sample-text"
+                        style={{ fontFamily: selectedFontInfo.value }}
+                    >
+                        {selectedFontInfo.sample}
+                    </span>
+                    <div className="preview-footer">
+                        <span className="font-name">{selectedFontInfo.name}</span>
+                        <span className="expand-icon">
+                            {isExpanded ? '▼' : '▶'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {isExpanded && (
+                <div className="font-selection-panel">
+                    {categories.map(category => (
+                        <div key={category.id} className="font-category">
+                            <h4 className="category-title">{category.name}</h4>
+                            <div className="font-samples">
+                                {category.fonts.map(font => (
+                                    <div 
+                                        key={font.value}
+                                        className={`font-sample ${selectedFont === font.value ? 'selected' : ''}`}
+                                        onClick={() => {
+                                            onFontSelect(font.value);
+                                            setIsExpanded(false);
+                                        }}
+                                    >
+                                        <span 
+                                            className="sample-text"
+                                            style={{ fontFamily: font.value }}
+                                        >
+                                            {font.sample}
+                                        </span>
+                                        <span className="font-name">{font.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+});
+
+// StampSelector コンポーネント
+const StampSelector = React.memo(({ 
+    onPreviewStamp, 
+    onConfirmStamp, 
+    onCancelStamp, 
+    onDeleteStamp,
+    isPreviewMode, 
+    isEditing,
+    uploadedStamps,    // propsとして受け取る
+    onUploadStamp
+}) => {
+    const presetStampFiles = [
+        'stamp_01.png',
+        'stamp_02.png',
+    ];
+    
+    const presetStamps = React.useMemo(() => 
+        presetStampFiles.map(file => ({
+            id: file,
+            src: `./stamp/${file}`
+        }))
+    , []);
+
+    // uploadedStampsのstateを削除し、直接propsを使用
+    const handleSelectStamp = (stamp) => {
+        const img = new Image();
+        img.onload = () => {
+            const maxSize = 200;
+            let width = stamp.originalSize ? stamp.originalSize.width / 3 : img.width / 3;
+            let height = stamp.originalSize ? stamp.originalSize.height / 3 : img.height / 3;
+            
+            if (width > maxSize || height > maxSize) {
+                const aspect = width / height;
+                if (width > height) {
+                    width = maxSize;
+                    height = width / aspect;
+                } else {
+                    height = maxSize;
+                    width = height * aspect;
+                }
+            }
+
+            onPreviewStamp(stamp.src, { width, height });
+        };
+        img.src = stamp.src;
+    };
+
+    const handleFileUpload = (e) => {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const stamp = {
+                        id: Date.now(),
+                        src: event.target.result,
+                        originalSize: {
+                            width: img.width,
+                            height: img.height
+                        }
+                    };
+                    onUploadStamp(stamp);
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    // プレビューモードまたは編集モード時のUI
+    if (isPreviewMode || isEditing) {
+        return (
+            <div className="stamp-selector">
+                <h4>{isEditing ? 'スタンプの編集' : 'スタンプを配置'}</h4>
+                <p>画像上の好きな位置にドラッグして配置し、サイズを調整してください</p>
+                <div className="preview-actions">
+                    <button 
+                        className="btn btn-primary"
+                        onClick={onConfirmStamp}
+                        style={{marginRight: '10px'}}
+                    >
+                        確定
+                    </button>
+                    {isEditing && (
+                        <button 
+                            className="btn btn-danger"
+                            onClick={onDeleteStamp}
+                            style={{marginRight: '10px'}}
+                        >
+                            削除
+                        </button>
+                    )}
+                    <button 
+                        className="btn"
+                        onClick={onCancelStamp}
+                    >
+                        キャンセル
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // 通常モードのUI（アップロード・スタンプ選択）
+    return (
+        <div className="stamp-selector">
+            {/* プリセットスタンプ */}
+            {presetStamps.length > 0 && (
+                <div className="preset-stamps">
+                    <h4>プリセットスタンプ</h4>
+                    <div className="stamp-grid">
+                        {presetStamps.map(stamp => (
+                            <div 
+                                key={stamp.id}
+                                className="stamp-item"
+                                onClick={() => handleSelectStamp(stamp)}
+                            >
+                                <img 
+                                    src={stamp.src} 
+                                    alt="プリセットスタンプ"
+                                    className="stamp-preview"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* カスタムスタンプアップロード */}
+            <div className="stamp-upload">
+                <h4>カスタムスタンプ</h4>
+                <label className="upload-button">
+                    <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileUpload}
+                        style={{ display: 'none' }}
+                    />
+                    画像をアップロード
+                </label>
+            </div>
+            
+            {uploadedStamps.length > 0 && (
+                <div className="uploaded-stamps">
+                    <h4>アップロードした画像</h4>
+                    <div className="stamp-grid">
+                        {uploadedStamps.map(stamp => (
+                            <div 
+                                key={stamp.id}
+                                className="stamp-item"
+                                onClick={() => handleSelectStamp(stamp)}
+                            >
+                                <img 
+                                    src={stamp.src} 
+                                    alt="アップロードした画像"
+                                    className="stamp-preview"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+});
+
+// SelectionArea コンポーネント - 画像の選択範囲を制御
+const SelectionArea = ({ position, size, isVisible, onMove, onResize }) => {
+    const elementRef = React.useRef(null);
+    const [isDragging, setIsDragging] = React.useState(false);
+    const [isResizing, setIsResizing] = React.useState(false);
+    const [dragOffset, setDragOffset] = React.useState({ x: 0, y: 0 });
+    const [startSize, setStartSize] = React.useState({ width: 0, height: 0 });
+    const [startPos, setStartPos] = React.useState({ x: 0, y: 0 });
+
+    // ドラッグ処理
+    const handleMouseDown = (e) => {
+        if (e.target.classList.contains('resize-handle')) {
+            return;
+        }
+        setIsDragging(true);
+        const rect = elementRef.current.getBoundingClientRect();
+        setDragOffset({
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        });
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging && !isResizing) return;
+        
+        if (isDragging) {
+            const parentRect = elementRef.current.parentElement.getBoundingClientRect();
+            const x = e.clientX - parentRect.left - dragOffset.x;
+            const y = e.clientY - parentRect.top - dragOffset.y;
+            onMove({ x, y });
+        }
+
+        if (isResizing) {
+            const dx = e.clientX - startPos.x;
+            const dy = e.clientY - startPos.y;
+            onResize({
+                width: Math.max(100, startSize.width + dx),
+                height: Math.max(100, startSize.height + dy)
+            });
+        }
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+        setIsResizing(false);
+    };
+
+    // リサイズ処理
+    const handleResizeStart = (e) => {
+        e.stopPropagation();
+        setIsResizing(true);
+        setStartSize({ width: size.width, height: size.height });
+        setStartPos({ x: e.clientX, y: e.clientY });
+    };
+
+    const handleTouchStart = (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        setIsDragging(true);
+        const rect = elementRef.current.getBoundingClientRect();
+        setDragOffset({
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top
+        });
+        onDragStart();
+        onSelect();
+    };
+    
+    const handleTouchMove = (e) => {
+        if (!isDragging) return;
+        const touch = e.touches[0];
+        const parentRect = elementRef.current.parentElement.getBoundingClientRect();
+        const x = touch.clientX - parentRect.left - dragOffset.x;
+        const y = touch.clientY - parentRect.top - dragOffset.y;
+        onDrag({ x, y });
+    };
+    
+    const handleTouchEnd = () => {
+        if (isDragging) {
+            setIsDragging(false);
+            onDragEnd();
+        }
+    };
+
+    React.useEffect(() => {
+        if (isDragging || isResizing) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging, isResizing]);
+
+    if (!isVisible) return null;
+
+    return (
+        <div
+            ref={elementRef}
+            style={{
+                position: 'absolute',
+                left: `${position.x}px`,
+                top: `${position.y}px`,
+                width: `${size.width}px`,
+                height: `${size.height}px`,
+                border: '2px solid #4a90e2',
+                cursor: isDragging ? 'grabbing' : 'grab',
+                backgroundColor: 'rgba(74, 144, 226, 0.1)',
+            }}
+            onMouseDown={handleMouseDown}
+        >
+            <div 
+                className="resize-handle"
+                style={{
+                    position: 'absolute',
+                    width: '10px',
+                    height: '10px',
+                    background: '#4a90e2',
+                    border: '1px solid white',
+                    borderRadius: '50%',
+                    bottom: '-5px',
+                    right: '-5px',
+                    cursor: 'se-resize',
+                }}
+                onMouseDown={handleResizeStart}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+            />
+        </div>
+    );
+};
+
+// 画像のダウンロード処理用のユーティリティ関数
+const downloadImage = async (originalImage, elements, selectionArea = null, adjustments) => {
+    return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        
+        img.onload = () => {
+            // イメージとキャンバスの位置関係を計算
+            const imageRect = originalImage.getBoundingClientRect();
+            const parentRect = originalImage.parentElement.getBoundingClientRect();
+            const displayWidth = imageRect.width;
+            const displayHeight = imageRect.height;
+            const scaleX = img.naturalWidth / displayWidth;
+            const scaleY = img.naturalHeight / displayHeight;
+
+            // キャンバスのサイズと描画範囲を設定
+            let sx, sy, sWidth, sHeight;
+            if (selectionArea) {
+                // 選択範囲の位置を実際の画像サイズに変換
+                const relativeX = selectionArea.position.x - (imageRect.left - parentRect.left);
+                const relativeY = selectionArea.position.y - (imageRect.top - parentRect.top);
+                
+                sx = relativeX * scaleX;
+                sy = relativeY * scaleY;
+                sWidth = selectionArea.size.width * scaleX;
+                sHeight = selectionArea.size.height * scaleY;
+                
+                canvas.width = sWidth;
+                canvas.height = sHeight;
+            } else {
+                sx = 0;
+                sy = 0;
+                sWidth = img.naturalWidth;
+                sHeight = img.naturalHeight;
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+            }
+
+            // 画像調整を適用
+            ctx.filter = `brightness(${adjustments.brightness}%) 
+                         contrast(${adjustments.contrast}%) 
+                         saturate(${adjustments.saturate}%)`;
+
+            // 画像を描画
+            ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+            
+            // フィルターをリセット
+            ctx.filter = 'none';
+
+            // 要素の描画用の変換スケール
+            const scale = selectionArea ? 
+                (canvas.width / selectionArea.size.width) : 
+                scaleX;
+
+            // テキストとスタンプを描画
+            elements.forEach(element => {
+                const elementX = selectionArea ?
+                    (element.position.x - selectionArea.position.x) :
+                    (element.position.x - (imageRect.left - parentRect.left));
+                const elementY = selectionArea ?
+                    (element.position.y - selectionArea.position.y) :
+                    (element.position.y - (imageRect.top - parentRect.top));
+
+                if (element.type === 'text') {
+                    const fontSize = parseInt(element.style.fontSize) * scale;
+                    ctx.font = `${fontSize}px ${element.style.fontFamily.replace(/[']/g, '')}`;
+                    ctx.fillStyle = element.style.color;
+
+                    if (element.style.writingMode === 'vertical-rl') {
+                        const chars = element.text.split('');
+                        let currentY = elementY * scale;
+                        chars.forEach(char => {
+                            ctx.fillText(char, elementX * scale, currentY);
+                            currentY += fontSize;
+                        });
+                    } else {
+                        ctx.fillText(element.text, elementX * scale, elementY * scale + fontSize);
+                    }
+                } else if (element.type === 'stamp') {
+                    const stampImg = new Image();
+                    stampImg.onload = () => {
+                        const width = element.size.width * scale;
+                        const height = element.size.height * scale;
+                        ctx.drawImage(
+                            stampImg,
+                            elementX * scale,
+                            elementY * scale,
+                            width,
+                            height
+                        );
+                    };
+                    stampImg.src = element.src;
+                }
+            });
+
+            // スタンプの読み込みを待ってからダウンロード
+            setTimeout(() => {
+                const link = document.createElement('a');
+                link.download = 'newyear-card.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                resolve();
+            }, 500);
+        };
+
+        img.src = originalImage.src;
+    });
+};
 
 // メインの NewYearCardEditor コンポーネント
 const NewYearCardEditor = () => {
-    // 既存の状態管理をそのまま維持
+    // 状態管理
     const [selectedImage, setSelectedImage] = React.useState(null);
     const [showTutorial, setShowTutorial] = React.useState(true);
     const [showAdjustments, setShowAdjustments] = React.useState(false);
@@ -730,53 +834,28 @@ const NewYearCardEditor = () => {
     const [stampElements, setStampElements] = React.useState([]);
     const [selectedStampIndex, setSelectedStampIndex] = React.useState(null);
     const [previewStamp, setPreviewStamp] = React.useState(null);
+
     const [showLayoutControls, setShowLayoutControls] = React.useState(false);
     const [selectionArea, setSelectionArea] = React.useState(null);
     const [uploadedStamps, setUploadedStamps] = React.useState([]);
-
-    // モバイル対応: ファイルアップロードハンドラ
+    // 画像アップロード処理
     const handleImageUpload = (event) => {
         const file = event.target.files[0];
         if (file) {
-            // ファイルサイズチェックを追加（5MB制限の例）
-            if (file.size > 5 * 1024 * 1024) {
-                alert('ファイルサイズが大きすぎます（5MB以下にしてください）');
-                return;
-            }
             const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    setSelectedImage(e.target.result);
-                };
-                img.src = e.target.result;
-            };
+            reader.onload = (e) => setSelectedImage(e.target.result);
             reader.readAsDataURL(file);
         }
     };
 
-    // モバイル対応: タッチイベントの処理
-    const handleTouchStart = (e) => {
-        if (e.touches.length === 1) {
-            e.preventDefault(); // シングルタッチの場合のみズームを防止
-        }
-    };
-
-    React.useEffect(() => {
-        // モバイルでのピンチズーム防止
-        document.addEventListener('touchstart', handleTouchStart, { passive: false });
-        return () => {
-            document.removeEventListener('touchstart', handleTouchStart);
-        };
-    }, []);
-
-    // その他の既存の関数はそのまま維持
+    // 画像スタイル
     const getImageStyle = () => ({
         filter: `brightness(${adjustments.brightness}%) 
                 contrast(${adjustments.contrast}%) 
                 saturate(${adjustments.saturate}%)`
     });
 
+    // テキスト関連の処理
     const handleTextDrag = (index, position) => {
         const updatedElements = [...textElements];
         updatedElements[index] = {
@@ -825,6 +904,11 @@ const NewYearCardEditor = () => {
         setSelectedStampIndex(null);
     };
 
+    // スタンプアップロード処理を追加
+    const handleUploadStamp = (stamp) => {
+        setUploadedStamps(prev => [...prev, stamp]);
+    };
+    
     const handleConfirmStamp = () => {
         if (previewStamp) {
             setStampElements(prev => [...prev, previewStamp]);
@@ -878,31 +962,14 @@ const NewYearCardEditor = () => {
         }
     };
 
-    // モバイル対応: ツールバーのトグル処理を改善
+    // ツールバーのトグル処理
     const handleToolbarClick = (tool) => {
-        // 他のパネルを閉じる
-        setShowAdjustments(false);
-        setShowTextControls(false);
-        setShowStampControls(false);
-        setShowLayoutControls(false);
+        setShowAdjustments(tool === 'adjust');
+        setShowTextControls(tool === 'text');
+        setShowStampControls(tool === 'stamp');
+        setShowLayoutControls(tool === 'layout');
         
-        // 選択したパネルを開く
-        switch(tool) {
-            case 'adjust':
-                setShowAdjustments(true);
-                break;
-            case 'text':
-                setShowTextControls(true);
-                break;
-            case 'stamp':
-                setShowStampControls(true);
-                break;
-            case 'layout':
-                setShowLayoutControls(true);
-                break;
-        }
-        
-        // レイアウトツール以外を選択した時は選択範囲を非表示
+        // ツール以外を選択した時は選択範囲を非表示
         if (tool !== 'layout') {
             setSelectionArea(null);
         }
@@ -936,6 +1003,7 @@ const NewYearCardEditor = () => {
         const imageElement = document.querySelector('.preview-image');
         if (!imageElement) return;
     
+        // 全要素を配列にまとめる
         const elements = [
             ...textElements.map(element => ({
                 ...element,
@@ -951,23 +1019,25 @@ const NewYearCardEditor = () => {
             imageElement,
             elements,
             selectionArea,
-            adjustments
+            adjustments  // 画像調整の設定を追加
         );
     };
     
+    // 初期テキスト要素の選択
     React.useEffect(() => {
         if (textElements.length > 0) {
             handleTextSelect(0);
         }
     }, []);
 
+    // テキスト更新の監視
     React.useEffect(() => {
         updateSelectedText();
     }, [currentText, currentFont, currentSize, currentColor, isVertical]);
-
-    // レンダリング部分（既存のまま）
+    // レンダリング部分
     return (
         <div className="editor-container">
+            {/* メインエディター領域 */}
             <div className="editor-main">
                 {selectedImage ? (
                     <>
@@ -978,6 +1048,7 @@ const NewYearCardEditor = () => {
                             style={getImageStyle()}
                         />
                         <div className="text-layer">
+                            {/* テキスト要素 */}
                             {textElements.map((element, index) => (
                                 <TextElement
                                     key={element.id}
@@ -994,6 +1065,7 @@ const NewYearCardEditor = () => {
                                     onDragEnd={() => {}}
                                 />
                             ))}
+                            {/* スタンプ要素 */}
                             {stampElements.map((element, index) => (
                                 <StampElement
                                     key={element.id}
@@ -1011,6 +1083,7 @@ const NewYearCardEditor = () => {
                                     onResize={(size) => handleStampResize(index, size)}
                                 />
                             ))}
+                            {/* プレビュースタンプ */}
                             {previewStamp && (
                                 <StampElement
                                     key="preview"
@@ -1025,6 +1098,7 @@ const NewYearCardEditor = () => {
                                     onResize={(size) => handleStampResize(null, size)}
                                 />
                             )}
+                            {/* 選択範囲 */}
                             <SelectionArea
                                 position={selectionArea?.position || { x: 0, y: 0 }}
                                 size={selectionArea?.size || { width: 0, height: 0 }}
@@ -1053,6 +1127,7 @@ const NewYearCardEditor = () => {
                 )}
             </div>
 
+            {/* ツールバー */}
             <div className="toolbar">
                 <button 
                     className={`btn ${showAdjustments ? 'btn-primary' : ''}`}
@@ -1071,7 +1146,7 @@ const NewYearCardEditor = () => {
                     onClick={() => handleToolbarClick('stamp')}
                 >
                     スタンプ
-               </button>
+                </button>
                 <button 
                     className={`btn ${showLayoutControls ? 'btn-primary' : ''}`}
                     onClick={() => handleToolbarClick('layout')}
@@ -1080,6 +1155,7 @@ const NewYearCardEditor = () => {
                 </button>
             </div>
 
+            {/* テキストコントロールパネル */}
             {showTextControls && selectedImage && (
                 <div className="control-panel">
                     <div className="writing-mode-toggle">
@@ -1157,6 +1233,7 @@ const NewYearCardEditor = () => {
                 </div>
             )}
 
+            {/* スタンプコントロールパネル */}
             {showStampControls && selectedImage && (
                 <div className="control-panel">
                     <StampSelector 
@@ -1166,12 +1243,13 @@ const NewYearCardEditor = () => {
                         onDeleteStamp={handleDeleteStamp}
                         isPreviewMode={!!previewStamp}
                         isEditing={selectedStampIndex !== null}
-                        uploadedStamps={uploadedStamps}
-                        onUploadStamp={setUploadedStamps}
+                        uploadedStamps={uploadedStamps}     // 追加
+                        onUploadStamp={handleUploadStamp}   // 追加
                     />
                 </div>
             )}
 
+            {/* 画像調整パネル */}
             {showAdjustments && selectedImage && (
                 <div className="control-panel">
                     <h3>画像調整</h3>
@@ -1204,6 +1282,7 @@ const NewYearCardEditor = () => {
                 </div>
             )}
 
+            {/* レイアウトコントロールパネル */}
             {showLayoutControls && selectedImage && (
                 <div className="control-panel">
                     <div className="layout-controls">
@@ -1224,6 +1303,7 @@ const NewYearCardEditor = () => {
                 </div>
             )}
 
+            {/* チュートリアル */}
             {showTutorial && (
                 <div className="tutorial">
                     <h2>VRChatの年賀状を作成！</h2>
@@ -1251,6 +1331,7 @@ const NewYearCardEditor = () => {
                     <p>何か要望とかあったら連絡ください～！何もないとは思いますが、使用は自己責任です。</p>
                 </div>
             )}
+
         </div>
     );
 };
