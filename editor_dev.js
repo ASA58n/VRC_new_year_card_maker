@@ -627,6 +627,16 @@ const SelectionArea = ({ position, size, isVisible, onMove, onResize }) => {
     const [startSize, setStartSize] = React.useState({ width: 0, height: 0 });
     const [startPos, setStartPos] = React.useState({ x: 0, y: 0 });
 
+    // ドラッグ開始時にbodyにクラスを追加
+    const addDraggingClass = () => {
+        document.body.classList.add('dragging');
+    };
+
+    // ドラッグ終了時にbodyからクラスを削除
+    const removeDraggingClass = () => {
+        document.body.classList.remove('dragging');
+    };
+    
     // ドラッグ処理
     const handleMouseDown = (e) => {
         if (e.target.classList.contains('resize-handle')) {
@@ -673,8 +683,10 @@ const SelectionArea = ({ position, size, isVisible, onMove, onResize }) => {
         setStartPos({ x: e.clientX, y: e.clientY });
     };
 
+    // タッチ操作のハンドリング
     const handleTouchStart = (e) => {
-        e.preventDefault();
+        if (e.target.classList.contains('resize-handle')) return;
+        
         const touch = e.touches[0];
         setIsDragging(true);
         const rect = elementRef.current.getBoundingClientRect();
@@ -682,24 +694,52 @@ const SelectionArea = ({ position, size, isVisible, onMove, onResize }) => {
             x: touch.clientX - rect.left,
             y: touch.clientY - rect.top
         });
-        onDragStart();
-        onSelect();
+        addDraggingClass();
     };
-    
+
     const handleTouchMove = (e) => {
-        if (!isDragging) return;
+        if (!isDragging && !isResizing) return;
+        e.preventDefault();
+
         const touch = e.touches[0];
-        const parentRect = elementRef.current.parentElement.getBoundingClientRect();
-        const x = touch.clientX - parentRect.left - dragOffset.x;
-        const y = touch.clientY - parentRect.top - dragOffset.y;
-        onDrag({ x, y });
-    };
-    
-    const handleTouchEnd = () => {
         if (isDragging) {
-            setIsDragging(false);
-            onDragEnd();
+            const parentRect = elementRef.current.parentElement.getBoundingClientRect();
+            const x = touch.clientX - parentRect.left - dragOffset.x;
+            const y = touch.clientY - parentRect.top - dragOffset.y;
+            onMove({ x, y });
         }
+    };
+
+    const handleTouchEnd = () => {
+        setIsDragging(false);
+        removeDraggingClass();
+    };
+
+    // タッチでのリサイズ処理
+    const handleTouchResizeStart = (e) => {
+        e.stopPropagation();
+        const touch = e.touches[0];
+        setIsResizing(true);
+        setStartSize({ width: size.width, height: size.height });
+        setStartPos({ x: touch.clientX, y: touch.clientY });
+        addDraggingClass();
+    };
+
+    const handleTouchResizeMove = (e) => {
+        if (!isResizing) return;
+        e.preventDefault();
+        const touch = e.touches[0];
+        const dx = touch.clientX - startPos.x;
+        const dy = touch.clientY - startPos.y;
+        onResize({
+            width: Math.max(100, startSize.width + dx),
+            height: Math.max(100, startSize.height + dy)
+        });
+    };
+
+    const handleTouchResizeEnd = () => {
+        setIsResizing(false);
+        removeDraggingClass();
     };
 
     React.useEffect(() => {
@@ -710,10 +750,14 @@ const SelectionArea = ({ position, size, isVisible, onMove, onResize }) => {
         return () => {
             window.removeEventListener('mousemove', handleMouseMove);
             window.removeEventListener('mouseup', handleMouseUp);
+            removeDraggingClass();
         };
     }, [isDragging, isResizing]);
 
     if (!isVisible) return null;
+
+    const resizeHandleSize = window.matchMedia('(max-width: 768px)').matches ? 30 : 10;
+    const resizeHandleOffset = window.matchMedia('(max-width: 768px)').matches ? -15 : -5;
 
     return (
         <div
@@ -727,26 +771,31 @@ const SelectionArea = ({ position, size, isVisible, onMove, onResize }) => {
                 border: '2px solid #4a90e2',
                 cursor: isDragging ? 'grabbing' : 'grab',
                 backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                touchAction: 'none'
             }}
             onMouseDown={handleMouseDown}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
         >
             <div 
                 className="resize-handle"
                 style={{
                     position: 'absolute',
-                    width: '10px',
-                    height: '10px',
+                    width: `${resizeHandleSize}px`,
+                    height: `${resizeHandleSize}px`,
                     background: '#4a90e2',
-                    border: '1px solid white',
+                    border: window.matchMedia('(max-width: 768px)').matches ? '2px solid white' : '1px solid white',
                     borderRadius: '50%',
-                    bottom: '-5px',
-                    right: '-5px',
+                    bottom: `${resizeHandleOffset}px`,
+                    right: `${resizeHandleOffset}px`,
                     cursor: 'se-resize',
+                    touchAction: 'none'
                 }}
                 onMouseDown={handleResizeStart}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
+                onTouchStart={handleTouchResizeStart}
+                onTouchMove={handleTouchResizeMove}
+                onTouchEnd={handleTouchResizeEnd}
             />
         </div>
     );
